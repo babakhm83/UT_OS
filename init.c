@@ -7,6 +7,13 @@
 
 char *argv[] = { "sh", 0 };
 
+void
+_put_name_in_console()
+{
+  char name []="Welcome to xv6 modified by Babak-Aidin-Ali\n";
+  printf(1,name);
+}
+
 int
 main(void)
 {
@@ -21,6 +28,7 @@ main(void)
 
   for(;;){
     printf(1, "init: starting sh\n");
+    _put_name_in_console();
     pid = fork();
     if(pid < 0){
       printf(1, "init: fork failed\n");

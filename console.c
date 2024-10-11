@@ -232,18 +232,9 @@ consoleintr(int (*getc)(void))
   }
 }
 
-void
-_put_name_in_console()
-{
-  char name [19]="Babak-Aidin-Ali:$ ";
-  cprintf(name);
-}
-
 int
 consoleread(struct inode *ip, char *dst, int n)
 {
-  _put_name_in_console();
-
   uint target;
   int c;
 
