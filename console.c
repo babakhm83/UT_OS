@@ -124,6 +124,8 @@ panic(char *s)
 }
 
 //PAGEBREAK: 50
+#define _UP_ARROW 0xe2
+#define _DOWN_ARROW 0xe3
 #define _LEFT_ARROW 0xe4
 #define _RIGHT_ARROW 0xe5
 #define BACKSPACE 0x100
@@ -131,12 +133,15 @@ panic(char *s)
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
 
 #define INPUT_BUF 128
-struct {
+struct buffer {
   char buf[INPUT_BUF];
   uint r;  // Read index
   uint w;  // Write index
   uint e;  // Edit index
 } input;
+
+struct buffer _history[10];
+short _current_history=0;
 
 int
 _get_cursor_pos()
@@ -161,18 +166,55 @@ _update_cursor(int pos, char symbol)
 }
 
 void
+_load_buffer_from_history()
+{
+  for (int i = 0; i < INPUT_BUF; i++)
+  {
+    if(input.buf[i]=='\n')
+      break;
+    consputc((int)input.buf[i]);
+  }
+  input.e--;
+  input.w=0;
+  input.r=0;
+}
+
+void
 _arrow_key_console_handler(int c)
 {
   int pos=_get_cursor_pos();
   if(c == _LEFT_ARROW)
   {
     if(pos%80 > 2) --pos;
+    _update_cursor(pos,crt[pos]);
+  }
+  else if(c == _RIGHT_ARROW)
+  {
+    if(pos%80<=input.e+1) ++pos;
+    _update_cursor(pos,crt[pos]);
+  }
+  else if(c == _UP_ARROW)
+  {
+    input.buf[input.e]='\n';
+    for (int i = 0; i < input.e - input.w; i++) {
+      consputc(BACKSPACE);  // Sends backspace to console
+    }
+    input.w=++input.e;
+    _history[(_current_history%10+10)%10]=input;
+    input=_history[(++_current_history%10+10)%10];
+    _load_buffer_from_history();
   }
   else
   {
-    if(pos%80<=input.e+1) ++pos;
+    input.buf[input.e]='\n';
+    for (int i = 0; i < input.e - input.w; i++) {
+      consputc(BACKSPACE);  // Sends backspace to console
+    }
+    input.w=++input.e;
+    _history[(_current_history%10+10)%10]=input;
+    input=_history[(--_current_history%10+10)%10];
+    _load_buffer_from_history();
   }
-  _update_cursor(pos,crt[pos]);
 }
 
 static void
@@ -183,13 +225,8 @@ cgaputc(int c)
     pos += 80 - pos%80;
   else if(c == BACKSPACE){
     if(pos > 0) --pos;
-  }
-  else
-  {
-    crt[pos] = (c&0xff) | 0x0700;  // black on white
-    if(pos%80>=input.e)
-      pos++;
-  }
+  } else
+    crt[pos++] = (c&0xff) | 0x0700;  // black on white
 
   if(pos < 0 || pos > 25*80)
     panic("pos under/overflow");
@@ -199,7 +236,6 @@ cgaputc(int c)
     pos -= 80;
     memset(crt+pos, 0, sizeof(crt[0])*(24*80 - pos));
   }
-
   _update_cursor(pos,' ');
 }
 
@@ -246,9 +282,12 @@ consoleintr(int (*getc)(void))
         consputc(BACKSPACE);
       }
       break;
-    case _LEFT_ARROW:  // Handle left arrow
-    case _RIGHT_ARROW: // Handle right arrow
-      _arrow_key_console_handler(c); // Directly handle arrow keys
+    // Handle arrow keys
+    case _LEFT_ARROW: 
+    case _RIGHT_ARROW:
+    case _UP_ARROW: 
+    case _DOWN_ARROW:
+      _arrow_key_console_handler(c);
       break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
@@ -282,7 +321,7 @@ consoleread(struct inode *ip, char *dst, int n)
 {
   uint target;
   int c;
-  // _print_code_of_char(); Used this function to find code for left and right key arrow
+  // _print_code_of_char(); //Used this function to find code for left and right key arrow
 
   iunlock(ip);
   target = n;
@@ -308,7 +347,12 @@ consoleread(struct inode *ip, char *dst, int n)
     *dst++ = c;
     --n;
     if(c == '\n')
+    {
+      _history[(_current_history++%10+10)%10]=input;
+      struct buffer new_input={"",0,0,0};
+      input=new_input;
       break;
+    }
   }
   release(&cons.lock);
   ilock(ip);
