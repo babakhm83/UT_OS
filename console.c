@@ -130,30 +130,60 @@ panic(char *s)
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
 
-static void
-cgaputc(int c)
+#define INPUT_BUF 128
+struct {
+  char buf[INPUT_BUF];
+  uint r;  // Read index
+  uint w;  // Write index
+  uint e;  // Edit index
+} input;
+
+int
+_get_cursor_pos()
 {
   int pos;
-
   // Cursor position: col + 80*row.
   outb(CRTPORT, 14);
   pos = inb(CRTPORT+1) << 8;
   outb(CRTPORT, 15);
   pos |= inb(CRTPORT+1);
+  return pos;
+}
 
+void
+_update_cursor(int pos, char symbol)
+{
+  outb(CRTPORT, 14);
+  outb(CRTPORT+1, pos>>8);
+  outb(CRTPORT, 15);
+  outb(CRTPORT+1, pos);
+  crt[pos] = symbol | 0x0700;
+}
+
+void
+_arrow_key_console_handler(int c)
+{
+  int pos=_get_cursor_pos();
+  if(c == _LEFT_ARROW)
+  {
+    if(pos%80 > 2) --pos;
+  }
+  else
+  {
+    if(pos%80<=input.e+1) ++pos;
+  }
+  _update_cursor(pos,crt[pos]);
+}
+
+static void
+cgaputc(int c)
+{
+  int pos=_get_cursor_pos();
   if(c == '\n')
     pos += 80 - pos%80;
   else if(c == BACKSPACE){
     if(pos > 0) --pos;
-  } 
-
-  else if(c == _LEFT_ARROW){ // Left arrow moves cursor backward
-    if(pos > 0) --pos;
   }
-  else if(c == _RIGHT_ARROW){ // Right arrow moves cursor forward
-    ++pos;
-  } 
-
   else
     crt[pos++] = (c&0xff) | 0x0700;  // black on white
 
@@ -166,11 +196,7 @@ cgaputc(int c)
     memset(crt+pos, 0, sizeof(crt[0])*(24*80 - pos));
   }
 
-  outb(CRTPORT, 14);
-  outb(CRTPORT+1, pos>>8);
-  outb(CRTPORT, 15);
-  outb(CRTPORT+1, pos);
-  crt[pos] = crt[pos] | 0x0700; // Changed so old characters don't get removed
+  _update_cursor(pos,' ');
 }
 
 void
@@ -188,14 +214,6 @@ consputc(int c)
     uartputc(c);
   cgaputc(c);
 }
-
-#define INPUT_BUF 128
-struct {
-  char buf[INPUT_BUF];
-  uint r;  // Read index
-  uint w;  // Write index
-  uint e;  // Edit index
-} input;
 
 #define C(x)  ((x)-'@')  // Control-x
 
@@ -223,6 +241,10 @@ consoleintr(int (*getc)(void))
         input.e--;
         consputc(BACKSPACE);
       }
+      break;
+    case _LEFT_ARROW:  // Handle left arrow
+    case _RIGHT_ARROW: // Handle right arrow
+      _arrow_key_console_handler(c); // Directly handle arrow keys
       break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
