@@ -28,7 +28,7 @@ main(void)
 
   for(;;){
     printf(1, "init: starting sh\n");
-    _put_name_in_console();
+    _put_name_in_console(); // Print our name after booting up
     pid = fork();
     if(pid < 0){
       printf(1, "init: fork failed\n");

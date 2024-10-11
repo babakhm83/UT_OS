@@ -124,6 +124,8 @@ panic(char *s)
 }
 
 //PAGEBREAK: 50
+#define _LEFT_ARROW 0xe4
+#define _RIGHT_ARROW 0xe5
 #define BACKSPACE 0x100
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
@@ -143,7 +145,16 @@ cgaputc(int c)
     pos += 80 - pos%80;
   else if(c == BACKSPACE){
     if(pos > 0) --pos;
-  } else
+  } 
+
+  else if(c == _LEFT_ARROW){ // Left arrow moves cursor backward
+    if(pos > 0) --pos;
+  }
+  else if(c == _RIGHT_ARROW){ // Right arrow moves cursor forward
+    ++pos;
+  } 
+
+  else
     crt[pos++] = (c&0xff) | 0x0700;  // black on white
 
   if(pos < 0 || pos > 25*80)
@@ -159,7 +170,7 @@ cgaputc(int c)
   outb(CRTPORT+1, pos>>8);
   outb(CRTPORT, 15);
   outb(CRTPORT+1, pos);
-  crt[pos] = ' ' | 0x0700;
+  crt[pos] = crt[pos] | 0x0700; // Changed so old characters don't get removed
 }
 
 void
@@ -232,11 +243,20 @@ consoleintr(int (*getc)(void))
   }
 }
 
+void
+_print_code_of_char()
+{
+  for(int i = 0; i < INPUT_BUF; i++) {
+    cprintf("%x ",(int)input.buf[i]);
+  }  
+}
+
 int
 consoleread(struct inode *ip, char *dst, int n)
 {
   uint target;
   int c;
+  // _print_code_of_char(); Used this function to find code for left and right key arrow
 
   iunlock(ip);
   target = n;
