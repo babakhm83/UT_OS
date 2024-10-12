@@ -157,13 +157,14 @@ _get_cursor_pos()
 }
 
 void
-_update_cursor(int _pos)
+_update_cursor(int _pos, char symbol)
 {
   outb(CRTPORT, 14);
   outb(CRTPORT+1, _pos>>8);
   outb(CRTPORT, 15);
   outb(CRTPORT+1, _pos);
-  crt[_pos] = crt[_pos] | 0x0700;
+  if(symbol!=0)
+    crt[_pos] = symbol | 0x0700;
 }
 
 void
@@ -190,7 +191,7 @@ _arrow_key_console_handler(int c)
     {
       --_pos;
       _arrow--;
-      _update_cursor(_pos);
+      _update_cursor(_pos,0);
     }
   }
   else if(c == _RIGHT_ARROW)
@@ -199,7 +200,7 @@ _arrow_key_console_handler(int c)
     {
       ++_pos;
       _arrow++;
-      _update_cursor(_pos);
+      _update_cursor(_pos,0);
     }
   }
   else
@@ -238,7 +239,7 @@ cgaputc(int c)
     pos -= 80;
     memset(crt+pos, 0, sizeof(crt[0])*(24*80 - pos));
   }
-  _update_cursor(pos);
+  _update_cursor(pos,' ');
 }
 
 void
@@ -292,12 +293,12 @@ consoleintr(int (*getc)(void))
           {
             input.buf[i % INPUT_BUF] = input.buf[(i+1) % INPUT_BUF];
           }
-          _update_cursor(_cursor_pos-_arrow);
+          _update_cursor(_cursor_pos-_arrow,0);
           for (int i = 0; i < input.e - input.w; i++) {
             consputc(BACKSPACE); 
           }
           _write_from_buffer();
-          _update_cursor(_cursor_pos-1);
+          _update_cursor(_cursor_pos-1,0);
         }
         break;
       }
@@ -331,12 +332,12 @@ consoleintr(int (*getc)(void))
           }
           input.buf[(input.e+_arrow)%INPUT_BUF]=c;
           input.e+=2;
-          _update_cursor(_cursor_pos-_arrow);
+          _update_cursor(_cursor_pos-_arrow,0);
           for (int i = 0; i < input.e-2 - input.w; i++) {
             consputc(BACKSPACE); 
           }
           _write_from_buffer();
-          _update_cursor(_cursor_pos+1);
+          _update_cursor(_cursor_pos+1,0);
         }
         if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
           input.w = input.e;
