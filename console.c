@@ -141,7 +141,7 @@ struct _buffer {
 } input;
 
 struct _buffer _history[10];
-short _current_history=0;
+int _current_history=0;
 
 int
 _get_cursor_pos()
@@ -166,7 +166,7 @@ _update_cursor(int _pos, char _symbol)
 }
 
 void
-_load_buffer_from_history()
+_write_from_buffer()
 {
   for (int i = 0; i < INPUT_BUF; i++)
   {
@@ -190,14 +190,14 @@ _arrow_key_console_handler(int c)
   }
   else if(c == _RIGHT_ARROW)
   {
-    if(_pos%80<=input.e+1) ++_pos;
+    if(_pos%80<=input.e%80+1) ++_pos;
     _update_cursor(_pos,crt[_pos]);
   }
   else
   {
     input.buf[input.e]='\n';
     for (int i = 0; i < input.e - input.w; i++) {
-      consputc(BACKSPACE);  // Sends backspace to console
+      consputc(BACKSPACE); 
     }
     input.w=++input.e;
     _history[(_current_history%10+10)%10]=input;
@@ -206,7 +206,7 @@ _arrow_key_console_handler(int c)
     else
       _current_history--;
     input=_history[(_current_history%10+10)%10];
-    _load_buffer_from_history();
+    _write_from_buffer();
   }
 }
 
