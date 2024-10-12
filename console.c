@@ -140,7 +140,9 @@ struct _buffer {
   uint e;  // Edit index
 } input;
 
-struct _buffer _history[10];
+#define _MOD(a,b) (a%b+b)%b
+#define _N_HISTORY 10
+struct _buffer _history[_N_HISTORY];
 int _current_history=0;
 int _arrow;
 
@@ -210,12 +212,12 @@ _arrow_key_console_handler(int c)
       consputc(BACKSPACE); 
     }
     input.w=++input.e;
-    _history[(_current_history%10+10)%10]=input;
+    _history[_MOD(_current_history,_N_HISTORY)]=input;
     if(c == _UP_ARROW)
       _current_history++;
     else
       _current_history--;
-    input=_history[(_current_history%10+10)%10];
+    input=_history[_MOD(_current_history,_N_HISTORY)];
     _write_from_buffer();
   }
 }
@@ -258,6 +260,73 @@ consputc(int c)
   cgaputc(c);
 }
 
+void
+_input_in_mid(int c)
+{
+  int _cursor_pos=_get_cursor_pos();
+  if(c==BACKSPACE)
+  {
+    for (int i = input.e+_arrow-1; i < input.e; i++)
+    {
+      input.buf[i % INPUT_BUF] = input.buf[(i+1) % INPUT_BUF];
+    }
+    _update_cursor(_cursor_pos-_arrow,0);
+    for (int i = 0; i < input.e - input.w; i++) {
+      consputc(BACKSPACE); 
+    }
+    _write_from_buffer();
+    _update_cursor(_cursor_pos-1,0);
+  }
+  else
+  {
+    for (int i = input.e; i > input.e+_arrow; i--)
+    {
+      input.buf[i % INPUT_BUF] = input.buf[(i-1) % INPUT_BUF];
+    }
+    input.buf[(input.e+_arrow)%INPUT_BUF]=c;
+    input.e+=2;
+    _update_cursor(_cursor_pos-_arrow,0);
+    for (int i = 0; i < input.e-2 - input.w; i++) {
+      consputc(BACKSPACE); 
+    }
+    _write_from_buffer();
+    _update_cursor(_cursor_pos+1,0);
+  }
+}
+
+void
+_history_command()
+{
+  release(&cons.lock);
+  cprintf("Command history:\n");
+  cprintf("--------------------------------------------------------------------------------\n");
+  for (int i = 0; i < _N_HISTORY; i++) {
+      cprintf("*%d: %s", i + 1, _history[_MOD(_current_history-i-1,_N_HISTORY)].buf);
+  }
+  cprintf("\n$ ");
+  acquire(&cons.lock);
+}
+
+int
+_buffer_with_str_cmp(char* target_str)
+{
+  int i=0;
+  while(target_str[i++]!='\0')
+    if (input.buf[i]!=target_str[i])
+      return 1;
+  return 0;
+}
+
+void
+_handle_custom_commands()
+{
+  char _history_str[]="history\n";
+  if (!_buffer_with_str_cmp(_history_str)) {
+    _history_command();
+    input.e = input.w = input.r = 0;
+  }
+}
+
 #define C(x)  ((x)-'@')  // Control-x
 
 void
@@ -288,17 +357,7 @@ consoleintr(int (*getc)(void))
         }
         else
         {
-          int _cursor_pos=_get_cursor_pos();
-          for (int i = input.e+_arrow-1; i < input.e; i++)
-          {
-            input.buf[i % INPUT_BUF] = input.buf[(i+1) % INPUT_BUF];
-          }
-          _update_cursor(_cursor_pos-_arrow,0);
-          for (int i = 0; i < input.e - input.w; i++) {
-            consputc(BACKSPACE); 
-          }
-          _write_from_buffer();
-          _update_cursor(_cursor_pos-1,0);
+          _input_in_mid(c);
         }
         break;
       }
@@ -325,23 +384,12 @@ consoleintr(int (*getc)(void))
         }
         else
         {
-          int _cursor_pos=_get_cursor_pos();
-          for (int i = input.e; i > input.e+_arrow; i--)
-          {
-            input.buf[i % INPUT_BUF] = input.buf[(i-1) % INPUT_BUF];
-          }
-          input.buf[(input.e+_arrow)%INPUT_BUF]=c;
-          input.e+=2;
-          _update_cursor(_cursor_pos-_arrow,0);
-          for (int i = 0; i < input.e-2 - input.w; i++) {
-            consputc(BACKSPACE); 
-          }
-          _write_from_buffer();
-          _update_cursor(_cursor_pos+1,0);
+          _input_in_mid(c);
         }
         if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
           input.w = input.e;
           wakeup(&input.r);
+          _handle_custom_commands();
         }
       }
       break;
@@ -366,7 +414,7 @@ consoleread(struct inode *ip, char *dst, int n)
 {
   uint target;
   int c;
-  // _print_code_of_char(); //Used this function to find code for left and right key arrow
+  // _print_code_of_char(); //Used this function to find hex code for arrow keys
 
   iunlock(ip);
   target = n;
@@ -393,7 +441,7 @@ consoleread(struct inode *ip, char *dst, int n)
     --n;
     if(c == '\n')
     {
-      _history[(_current_history++%10+10)%10]=input;
+      _history[_MOD(_current_history++,_N_HISTORY)]=input;
       struct _buffer new_input={"",0,0,0};
       input=new_input;
       break;
