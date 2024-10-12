@@ -10,8 +10,8 @@ char *argv[] = { "sh", 0 };
 void
 _put_name_in_console()
 {
-  char name []="Welcome to xv6 modified by Babak-Aidin-Ali\n";
-  printf(1,name);
+  char _name []="Welcome to xv6 modified by Babak-Aidin-Ali\n";
+  printf(1,_name);
 }
 
 int

@@ -133,36 +133,36 @@ panic(char *s)
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
 
 #define INPUT_BUF 128
-struct buffer {
+struct _buffer {
   char buf[INPUT_BUF];
   uint r;  // Read index
   uint w;  // Write index
   uint e;  // Edit index
 } input;
 
-struct buffer _history[10];
+struct _buffer _history[10];
 short _current_history=0;
 
 int
 _get_cursor_pos()
 {
-  int pos;
+  int _pos;
   // Cursor position: col + 80*row.
   outb(CRTPORT, 14);
-  pos = inb(CRTPORT+1) << 8;
+  _pos = inb(CRTPORT+1) << 8;
   outb(CRTPORT, 15);
-  pos |= inb(CRTPORT+1);
-  return pos;
+  _pos |= inb(CRTPORT+1);
+  return _pos;
 }
 
 void
-_update_cursor(int pos, char symbol)
+_update_cursor(int _pos, char _symbol)
 {
   outb(CRTPORT, 14);
-  outb(CRTPORT+1, pos>>8);
+  outb(CRTPORT+1, _pos>>8);
   outb(CRTPORT, 15);
-  outb(CRTPORT+1, pos);
-  crt[pos] = symbol | 0x0700;
+  outb(CRTPORT+1, _pos);
+  crt[_pos] = _symbol | 0x0700;
 }
 
 void
@@ -182,27 +182,16 @@ _load_buffer_from_history()
 void
 _arrow_key_console_handler(int c)
 {
-  int pos=_get_cursor_pos();
+  int _pos=_get_cursor_pos();
   if(c == _LEFT_ARROW)
   {
-    if(pos%80 > 2) --pos;
-    _update_cursor(pos,crt[pos]);
+    if(_pos%80 > 2) --_pos;
+    _update_cursor(_pos,crt[_pos]);
   }
   else if(c == _RIGHT_ARROW)
   {
-    if(pos%80<=input.e+1) ++pos;
-    _update_cursor(pos,crt[pos]);
-  }
-  else if(c == _UP_ARROW)
-  {
-    input.buf[input.e]='\n';
-    for (int i = 0; i < input.e - input.w; i++) {
-      consputc(BACKSPACE);  // Sends backspace to console
-    }
-    input.w=++input.e;
-    _history[(_current_history%10+10)%10]=input;
-    input=_history[(++_current_history%10+10)%10];
-    _load_buffer_from_history();
+    if(_pos%80<=input.e+1) ++_pos;
+    _update_cursor(_pos,crt[_pos]);
   }
   else
   {
@@ -212,7 +201,11 @@ _arrow_key_console_handler(int c)
     }
     input.w=++input.e;
     _history[(_current_history%10+10)%10]=input;
-    input=_history[(--_current_history%10+10)%10];
+    if(c == _UP_ARROW)
+      _current_history++;
+    else
+      _current_history--;
+    input=_history[(_current_history%10+10)%10];
     _load_buffer_from_history();
   }
 }
@@ -282,6 +275,7 @@ consoleintr(int (*getc)(void))
         consputc(BACKSPACE);
       }
       break;
+
     // Handle arrow keys
     case _LEFT_ARROW: 
     case _RIGHT_ARROW:
@@ -289,6 +283,7 @@ consoleintr(int (*getc)(void))
     case _DOWN_ARROW:
       _arrow_key_console_handler(c);
       break;
+
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;
@@ -349,7 +344,7 @@ consoleread(struct inode *ip, char *dst, int n)
     if(c == '\n')
     {
       _history[(_current_history++%10+10)%10]=input;
-      struct buffer new_input={"",0,0,0};
+      struct _buffer new_input={"",0,0,0};
       input=new_input;
       break;
     }
