@@ -207,6 +207,10 @@ _arrow_key_console_handler(int c)
   }
   else
   {
+    if (c == _UP_ARROW && _history[_MOD(_current_history+1,_N_HISTORY)].buf[0]=='\0')
+      return;
+    if (c == _DOWN_ARROW && _history[_MOD(_current_history-1,_N_HISTORY)].buf[0]=='\0')
+      return;
     _update_cursor(_pos-_arrow,0);
     _arrow=0;
     input.buf[input.e]='\n';
@@ -303,7 +307,9 @@ _history_command()
   cprintf("Command history:\n");
   cprintf("--------------------------------------------------------------------------------\n");
   for (int i = 0; i < _N_HISTORY; i++) {
-      cprintf("*%d: %s", i + 1, _history[_MOD(_current_history-i-1,_N_HISTORY)].buf);
+    if (_history[_MOD(_current_history-i-1,_N_HISTORY)].buf[0]=='\0')
+      break;
+    cprintf("*%d: %s", i + 1, _history[_MOD(_current_history-i-1,_N_HISTORY)].buf);
   }
   cprintf("\n$ ");
   acquire(&cons.lock);
