@@ -359,8 +359,8 @@ consoleintr(int (*getc)(void))
         {
           _input_in_mid(c);
         }
-        break;
       }
+      break;
 
     // Handle arrow keys
     case _LEFT_ARROW: 
