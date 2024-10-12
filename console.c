@@ -142,6 +142,7 @@ struct _buffer {
 
 struct _buffer _history[10];
 int _current_history=0;
+int _arrow;
 
 int
 _get_cursor_pos()
@@ -156,13 +157,13 @@ _get_cursor_pos()
 }
 
 void
-_update_cursor(int _pos, char _symbol)
+_update_cursor(int _pos)
 {
   outb(CRTPORT, 14);
   outb(CRTPORT+1, _pos>>8);
   outb(CRTPORT, 15);
   outb(CRTPORT+1, _pos);
-  crt[_pos] = _symbol | 0x0700;
+  crt[_pos] = crt[_pos] | 0x0700;
 }
 
 void
@@ -185,13 +186,21 @@ _arrow_key_console_handler(int c)
   int _pos=_get_cursor_pos();
   if(c == _LEFT_ARROW)
   {
-    if(_pos%80 > 2) --_pos;
-    _update_cursor(_pos,crt[_pos]);
+    if(_pos%80 > 2)
+    {
+      --_pos;
+      _arrow--;
+      _update_cursor(_pos);
+    }
   }
   else if(c == _RIGHT_ARROW)
   {
-    if(_pos%80<=input.e%80+1) ++_pos;
-    _update_cursor(_pos,crt[_pos]);
+    if(_pos%80<=(input.e+1)%80)
+    {
+      ++_pos;
+      _arrow++;
+      _update_cursor(_pos);
+    }
   }
   else
   {
@@ -229,7 +238,7 @@ cgaputc(int c)
     pos -= 80;
     memset(crt+pos, 0, sizeof(crt[0])*(24*80 - pos));
   }
-  _update_cursor(pos,' ');
+  _update_cursor(pos);
 }
 
 void
@@ -271,10 +280,27 @@ consoleintr(int (*getc)(void))
       break;
     case C('H'): case '\x7f':  // Backspace
       if(input.e != input.w){
-        input.e--;
-        consputc(BACKSPACE);
+        if (_arrow==0)
+        {
+          input.e--;
+          consputc(BACKSPACE);
+        }
+        else
+        {
+          int _cursor_pos=_get_cursor_pos();
+          for (int i = input.e+_arrow-1; i < input.e; i++)
+          {
+            input.buf[i % INPUT_BUF] = input.buf[(i+1) % INPUT_BUF];
+          }
+          _update_cursor(_cursor_pos-_arrow);
+          for (int i = 0; i < input.e - input.w; i++) {
+            consputc(BACKSPACE); 
+          }
+          _write_from_buffer();
+          _update_cursor(_cursor_pos-1);
+        }
+        break;
       }
-      break;
 
     // Handle arrow keys
     case _LEFT_ARROW: 
@@ -287,8 +313,31 @@ consoleintr(int (*getc)(void))
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;
-        input.buf[input.e++ % INPUT_BUF] = c;
-        consputc(c);
+
+        if(c=='\n')
+          _arrow=0;
+
+        if (_arrow==0)
+        {
+          input.buf[input.e++ % INPUT_BUF] = c;
+          consputc(c);
+        }
+        else
+        {
+          int _cursor_pos=_get_cursor_pos();
+          for (int i = input.e; i > input.e+_arrow; i--)
+          {
+            input.buf[i % INPUT_BUF] = input.buf[(i-1) % INPUT_BUF];
+          }
+          input.buf[(input.e+_arrow)%INPUT_BUF]=c;
+          input.e+=2;
+          _update_cursor(_cursor_pos-_arrow);
+          for (int i = 0; i < input.e-2 - input.w; i++) {
+            consputc(BACKSPACE); 
+          }
+          _write_from_buffer();
+          _update_cursor(_cursor_pos+1);
+        }
         if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
           input.w = input.e;
           wakeup(&input.r);
