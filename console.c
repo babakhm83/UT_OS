@@ -174,7 +174,7 @@ _write_from_buffer()
 {
   for (int i = 0; i < INPUT_BUF; i++)
   {
-    if(input.buf[i]=='\n')
+    if(input.buf[i]=='\n' || input.buf[i]=='\0')
       break;
     consputc((int)input.buf[i]);
   }
@@ -207,6 +207,8 @@ _arrow_key_console_handler(int c)
   }
   else
   {
+    _update_cursor(_pos-_arrow,0);
+    _arrow=0;
     input.buf[input.e]='\n';
     for (int i = 0; i < input.e - input.w; i++) {
       consputc(BACKSPACE); 
@@ -357,7 +359,7 @@ consoleintr(int (*getc)(void))
         }
         else
         {
-          _input_in_mid(c);
+          _input_in_mid(BACKSPACE);
         }
       }
       break;
