@@ -15,7 +15,7 @@ void decode(int fd, char text[])
   {
     key+=_ids[i]%100;
   }
-  key=(key%26+26)%26;
+  key=((-key)%26+26)%26;
   int i = 0;
   while(text[i]!='\0')
   {
