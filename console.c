@@ -144,6 +144,7 @@ struct _buffer {
 #define _N_HISTORY 10
 struct _buffer _history[_N_HISTORY];
 int _current_history=0;
+int _last_history=0;
 int _arrow;
 
 int
@@ -207,9 +208,9 @@ _arrow_key_console_handler(int c)
   }
   else
   {
-    if (c == _UP_ARROW && _history[_MOD(_current_history+1,_N_HISTORY)].buf[0]=='\0')
+    if (c == _UP_ARROW && _history[_MOD(_current_history-1,_N_HISTORY)].buf[0]=='\0')
       return;
-    if (c == _DOWN_ARROW && _history[_MOD(_current_history-1,_N_HISTORY)].buf[0]=='\0')
+    if (c == _DOWN_ARROW && _history[_MOD(_current_history+1,_N_HISTORY)].buf[0]=='\0')
       return;
     _update_cursor(_pos-_arrow,0);
     _arrow=0;
@@ -220,9 +221,9 @@ _arrow_key_console_handler(int c)
     input.w=++input.e;
     _history[_MOD(_current_history,_N_HISTORY)]=input;
     if(c == _UP_ARROW)
-      _current_history++;
-    else
       _current_history--;
+    else
+      _current_history++;
     input=_history[_MOD(_current_history,_N_HISTORY)];
     _write_from_buffer();
   }
@@ -449,7 +450,8 @@ consoleread(struct inode *ip, char *dst, int n)
     --n;
     if(c == '\n')
     {
-      _history[_MOD(_current_history++,_N_HISTORY)]=input;
+      _history[_MOD(_last_history++,_N_HISTORY)]=input;
+      _current_history=_last_history;
       struct _buffer new_input={"",0,0,0};
       input=new_input;
       break;
