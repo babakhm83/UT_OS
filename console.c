@@ -123,11 +123,16 @@ panic(char *s)
     ;
 }
 
+#define C(x)  ((x)-'@')  // Control-x
+
 //PAGEBREAK: 50
 #define _UP_ARROW 0xe2
 #define _DOWN_ARROW 0xe3
 #define _LEFT_ARROW 0xe4
 #define _RIGHT_ARROW 0xe5
+
+#define TURE 1
+#define False 0
 #define BACKSPACE 0x100
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
@@ -148,13 +153,17 @@ int _last_history=0;
 int _arrow;
 
 int
+
+#define ___HIGH_BYTE_CUR 14
+#define ___LOW_BYTE_CUR 15
+
 _get_cursor_pos()
 {
   int _pos;
   // Cursor position: col + 80*row.
-  outb(CRTPORT, 14);
+  outb(CRTPORT, ___HIGH_BYTE_CUR);
   _pos = inb(CRTPORT+1) << 8;
-  outb(CRTPORT, 15);
+  outb(CRTPORT, ___LOW_BYTE_CUR);
   _pos |= inb(CRTPORT+1);
   return _pos;
 }
@@ -162,9 +171,9 @@ _get_cursor_pos()
 void
 _update_cursor(int _pos, char symbol)
 {
-  outb(CRTPORT, 14);
+  outb(CRTPORT, ___HIGH_BYTE_CUR);
   outb(CRTPORT+1, _pos>>8);
-  outb(CRTPORT, 15);
+  outb(CRTPORT, ___LOW_BYTE_CUR);
   outb(CRTPORT+1, _pos);
   if(symbol!=0)
     crt[_pos] = symbol | 0x0700;
@@ -190,7 +199,7 @@ _arrow_key_console_handler(int c)
   int _pos=_get_cursor_pos();
   if(c == _LEFT_ARROW)
   {
-    if(_pos%80 > 2)
+    if(-_arrow < input.e)
     {
       --_pos;
       _arrow--;
@@ -199,7 +208,7 @@ _arrow_key_console_handler(int c)
   }
   else if(c == _RIGHT_ARROW)
   {
-    if(_pos%80<=(input.e+1)%80)
+    if(_arrow)
     {
       ++_pos;
       _arrow++;
@@ -270,6 +279,8 @@ consputc(int c)
 void
 _input_in_mid(int c)
 {
+  if (_arrow <= -input.e)
+    return;
   int _cursor_pos=_get_cursor_pos();
   if(c==BACKSPACE)
   {
@@ -336,7 +347,74 @@ _handle_custom_commands()
   }
 }
 
-#define C(x)  ((x)-'@')  // Control-x
+
+void
+___handle_ctrl_s(int (*getc)(void))
+{
+  int c,prev_e = input.e;
+  while((c = getc()) != C('F'))
+  {
+    if (c <= 0)
+    {
+      continue;
+    } 
+    else if (c==8) //backspace
+    {
+      input.buf[input.e--] = '\0';
+      consputc(BACKSPACE);
+    }
+    else if(input.e-input.r < INPUT_BUF){
+      c = (c == '\r') ? '\n' : c;
+      input.buf[input.e++ % INPUT_BUF] = c;
+      consputc(c);
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  release(&cons.lock);
+
+  // hard
+  //####################################
+  // int end_flag = 0;
+  // for (int i = prev_e; i < input.e; i++)
+  // {
+  // cprintf("-goog%d: %d-",i,input.buf[i]);
+  //   if (end_flag)
+  //   {
+  //     break;
+  //   }
+  //   if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF)
+  //   {
+  //     end_flag = 1;
+  //     consputc(input.buf[i]);
+  //   }
+  //   else consputc(input.buf[i]);
+  // }
+  // if (end_flag)
+  // {
+  //     cprintf("goog");
+  //     input.w = i;
+  //     wakeup(&input.r);
+  //     _handle_custom_commands();
+  // }
+  //#################################
+
+  // simple
+  //#################################
+  int current_e = input.e;
+  for (int i = prev_e; i < current_e; i++)
+  {
+    int offset = i - prev_e, base = current_e;
+    input.buf[base + offset] = input.buf[i];
+    input.e++;
+    consputc(input.buf[i]);
+  }
+  //#################################
+  acquire(&cons.lock);
+}
 
 void
 consoleintr(int (*getc)(void))
@@ -361,7 +439,7 @@ consoleintr(int (*getc)(void))
       if(input.e != input.w){
         if (_arrow==0)
         {
-          input.e--;
+          input.buf[input.e--] = '\0';
           consputc(BACKSPACE);
         }
         else
@@ -377,6 +455,12 @@ consoleintr(int (*getc)(void))
     case _UP_ARROW: 
     case _DOWN_ARROW:
       _arrow_key_console_handler(c);
+      break;
+    
+    //handle ctrl + s
+    case C('S'):
+
+      ___handle_ctrl_s(getc);
       break;
 
     default:
@@ -489,4 +573,3 @@ consoleinit(void)
 
   ioapicenable(IRQ_KBD, 0);
 }
-
