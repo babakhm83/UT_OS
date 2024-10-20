@@ -7,7 +7,7 @@
 
 int SIZE=512;
 
-void decode(int fd, char text[])
+void encode(int fd, char text[])
 {
   int _ids[3]={810101408,810101561,810101560};
   int key=0;
@@ -73,7 +73,7 @@ main(int argc, char *argv[])
     printf(1, "encode: cannot open %s\n", output_file);
     exit();
   }
-  decode(fd,text);
+  encode(fd,text);
   close(fd);
   exit();
 }

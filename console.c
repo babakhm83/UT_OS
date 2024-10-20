@@ -131,7 +131,8 @@ panic(char *s)
 #define _LEFT_ARROW 0xe4
 #define _RIGHT_ARROW 0xe5
 
-#define TURE 1
+#define PRINTF(...) {release(&cons.lock);cprintf(__VA_ARGS__);acquire(&cons.lock);}
+#define True 1
 #define False 0
 #define BACKSPACE 0x100
 #define CRTPORT 0x3d4
@@ -145,18 +146,18 @@ struct _buffer {
   uint e;  // Edit index
 } input;
 
+
 #define _MOD(a,b) (a%b+b)%b
-#define _N_HISTORY 10
+#define _N_HISTORY 11
 struct _buffer _history[_N_HISTORY];
 int _current_history=0;
 int _last_history=0;
-int _arrow;
-
-int
+int _arrow = 0;
 
 #define ___HIGH_BYTE_CUR 14
 #define ___LOW_BYTE_CUR 15
 
+int
 _get_cursor_pos()
 {
   int _pos;
@@ -188,9 +189,18 @@ _write_from_buffer()
       break;
     consputc((int)input.buf[i]);
   }
-  input.e--;
   input.w=0;
   input.r=0;
+}
+
+void
+___clear_cmd(int end)
+{
+  int _cursor_pos = _get_cursor_pos();
+  _update_cursor(_cursor_pos-_arrow,0);
+  for (int i = 0; i < end - input.w; i++) {
+    consputc(BACKSPACE); 
+  }
 }
 
 void
@@ -217,23 +227,25 @@ _arrow_key_console_handler(int c)
   }
   else
   {
-    if (c == _UP_ARROW && _history[_MOD(_current_history-1,_N_HISTORY)].buf[0]=='\0')
-      return;
-    if (c == _DOWN_ARROW && _history[_MOD(_current_history+1,_N_HISTORY)].buf[0]=='\0')
-      return;
-    _update_cursor(_pos-_arrow,0);
-    _arrow=0;
+    if (c == _UP_ARROW)
+      if(_history[_MOD(_current_history-1,_N_HISTORY)].buf[0]=='\0' || 
+      _MOD(_current_history-1,_N_HISTORY)==_MOD(_last_history,_N_HISTORY))
+        return;
+    if (c == _DOWN_ARROW)
+      if(_MOD(_current_history+1,_N_HISTORY)==_MOD(_last_history+1,_N_HISTORY))
+        return;
     input.buf[input.e]='\n';
-    for (int i = 0; i < input.e - input.w; i++) {
-      consputc(BACKSPACE); 
-    }
+    ___clear_cmd(input.e);
+    _arrow=0;
     input.w=++input.e;
-    _history[_MOD(_current_history,_N_HISTORY)]=input;
+    if (_MOD(_current_history,_N_HISTORY)==_MOD(_last_history,_N_HISTORY))
+      _history[_MOD(_current_history,_N_HISTORY)]=input;
     if(c == _UP_ARROW)
       _current_history--;
     else
       _current_history++;
     input=_history[_MOD(_current_history,_N_HISTORY)];
+    input.e--;
     _write_from_buffer();
   }
 }
@@ -276,37 +288,62 @@ consputc(int c)
   cgaputc(c);
 }
 
+
+void
+___shift_buf(int right_flag, int change_idx){
+    if (right_flag)
+    {
+      for (int i = input.e; i > change_idx; i--)
+      {
+        input.buf[i % INPUT_BUF] = input.buf[(i-1) % INPUT_BUF];
+      }
+      ++input.e;
+    }
+    else
+    {
+      for (int i = change_idx-1; i < input.e; i++)
+      {
+        input.buf[i % INPUT_BUF] = input.buf[(i+1) % INPUT_BUF];
+      }
+      --input.e;
+    }
+}
+
+#define ___BACKSPACE 8
+
+void ___update_buffer(int c, int change_idx)
+{
+  if (c <= 0)
+    return;
+  if (c == BACKSPACE || c == ___BACKSPACE)
+  {
+    ___shift_buf(0,change_idx);
+  }
+  else
+  {
+    ___shift_buf(1,change_idx);
+    input.buf[(change_idx)%INPUT_BUF]=c;
+  }
+}
+
 void
 _input_in_mid(int c)
 {
-  if (_arrow <= -input.e)
-    return;
   int _cursor_pos=_get_cursor_pos();
-  if(c==BACKSPACE)
+  int change_index = input.e + _arrow;
+  if(c==BACKSPACE || c == ___BACKSPACE)
   {
-    for (int i = input.e+_arrow-1; i < input.e; i++)
-    {
-      input.buf[i % INPUT_BUF] = input.buf[(i+1) % INPUT_BUF];
-    }
-    _update_cursor(_cursor_pos-_arrow,0);
-    for (int i = 0; i < input.e - input.w; i++) {
-      consputc(BACKSPACE); 
-    }
+    if (_arrow <= -input.e) // no extra backspace allowed
+      return;
+    ___update_buffer(c,change_index);
+    ___clear_cmd(input.e + 1);
     _write_from_buffer();
     _update_cursor(_cursor_pos-1,0);
   }
   else
   {
-    for (int i = input.e; i > input.e+_arrow; i--)
-    {
-      input.buf[i % INPUT_BUF] = input.buf[(i-1) % INPUT_BUF];
-    }
-    input.buf[(input.e+_arrow)%INPUT_BUF]=c;
-    input.e+=2;
-    _update_cursor(_cursor_pos-_arrow,0);
-    for (int i = 0; i < input.e-2 - input.w; i++) {
-      consputc(BACKSPACE); 
-    }
+    ___update_buffer(c,change_index);
+    ___clear_cmd(input.e - 1);
     _write_from_buffer();
     _update_cursor(_cursor_pos+1,0);
   }
@@ -317,8 +354,8 @@ _history_command()
 {
   release(&cons.lock);
   cprintf("Command history:\n");
-  cprintf("--------------------------------------------------------------------------------\n");
-  for (int i = 0; i < _N_HISTORY; i++) {
+  cprintf("-------------------------------------------------------------------------------\n");
+  for (int i = 0; i < _N_HISTORY-1; i++) {
     if (_history[_MOD(_current_history-i-1,_N_HISTORY)].buf[0]=='\0')
       break;
     cprintf("*%d: %s", i + 1, _history[_MOD(_current_history-i-1,_N_HISTORY)].buf);
@@ -337,6 +374,243 @@ _buffer_with_str_cmp(char* target_str)
   return 0;
 }
 
+struct __exp_found {
+  char num_str[INPUT_BUF];
+  int num_float;
+  int num_size;
+  int start_exp_idx;
+  int exp_size;
+  int success_flag;
+} dum;
+
+int __is_in_arr(char inc, char* arr) {
+  char c = 'a';
+  int i = 0;
+  while (c != '\0')
+  {
+    c = arr[i];
+    if (c == inc)
+      return 1;  
+    i += 1;
+  }
+  return 0;
+}
+
+int __char_to_int(char* arr, int n) {
+  int result = 0;
+  for (int i = 0; i <= n; i++)
+    result = 10 * result + arr[i] - '0';
+  return result;
+}
+
+struct __exp_found
+__int_to_char(int n, struct __exp_found exp) {
+  int t = n;
+  int sign =0;
+  int l = 0;
+  if (n == 0)
+  {
+    exp.num_size = 1;
+    exp.num_str[0] = '0';
+    return exp;
+  }
+  if (n < 0)
+  {
+    exp.num_str[l] = '-';
+    sign++;
+    l++;
+    t = -t;
+    n = -n;
+  }
+
+  while (t > 0.9)
+  {
+    t /= 10;
+    l++;
+  }
+  for (int i = sign; i < l; i++)
+  {
+    exp.num_str[l-i-(sign?0:1)] = (n % 10) + '0'; // if negative start from one place in right
+    n /= 10;
+  }
+  exp.num_size = l; 
+  return exp;
+}
+
+struct __exp_found
+__float1p_to_char(float n, struct __exp_found exp) {
+  float temp = n * 10;
+  int t = temp;
+  int l = 0;
+  int sign = 0;
+  if (n < 0)
+  {
+    exp.num_str[l] = '-';
+    sign++;
+    l++;
+    t = -t;
+    temp = -temp;
+  }
+  while (t > 0.9)
+  {
+    t /= 10;
+    l++;
+  }
+  t = temp;
+  for (int i = sign; i < l; i++)
+  {
+    exp.num_str[l - i- (sign?0:1)] = (t % 10) + '0';
+    t /= 10;
+  }
+
+  // handling floating point
+  l += 1;
+  exp.num_str[l - 1] =  exp.num_str[l-2];
+  exp.num_str[l-2] = '.';
+  exp.num_size = l;
+  return exp;
+}
+
+struct __exp_found
+__solve_exp(char* txt, int break_index, int end_index)
+{
+  struct __exp_found exp;
+  exp.success_flag = 1;
+  exp.exp_size = end_index + 2 + 1; // 2 for =? and 1 for index
+
+  int num1 = __char_to_int(&txt[0], break_index);
+  int num2 = __char_to_int(&txt[break_index + 2], end_index - 2 - break_index);
+  int result = -1;
+  switch (txt[break_index + 1])
+  {
+  case '+':{
+    result = num1 + num2;
+    exp.num_float = result;
+    exp = __int_to_char(result, exp);
+    }break;
+  
+  case '-':{
+    result = num1 - num2;
+    exp.num_float = result;
+    exp = __int_to_char(result, exp);
+    }break;
+  
+  case '*':{
+    result = num1 * num2;
+    exp.num_float = result;
+    exp = __int_to_char(result, exp);
+    }break;
+  
+  case '/':{
+    float num1_float = num1;
+    float r = num1_float / num2;
+    exp.num_float = r;
+    exp = __float1p_to_char(r, exp);
+    }break;
+  
+  default:
+    break;
+  }
+
+  for (int i = exp.num_size; i < INPUT_BUF; i++)
+     exp.num_str[i] = '\0';
+
+  return exp; 
+}
+
+struct __exp_found
+__find_expression()
+{
+  struct __exp_found no_exp;
+  no_exp.success_flag = 0; 
+  char c = 'a';
+  char nums[11] = "0123456789";
+  char ops[5] = "+-*/";
+  int i = 0;
+  int s = 0;
+  int num1_start, num1_end, num2_end;
+  while (c != '\0')
+  {
+    c = input.buf[i];
+    switch (s)
+    {
+    case 0:{
+      if (__is_in_arr(c,nums))
+      {
+        num1_start = i;
+        num1_end = i;
+        s = 1;
+      }
+      }break;
+
+    case 1:{
+      if (__is_in_arr(c,nums))
+        num1_end = i;
+      else if (__is_in_arr(c,ops))
+        s = 2;
+      else
+        s = 0;
+      }break;
+    
+    case 2:{
+      if (__is_in_arr(c,nums))
+      {
+        num2_end = i;
+        s = 3;
+      }
+      else
+        s = 0;
+      }break;
+
+    case 3:{
+      if (__is_in_arr(c,nums))
+        num2_end = i;
+      else if (c == '=')
+        s = 4;
+      else
+        s = 0;
+      }break;
+ 
+    case 4:{
+      if (c == '?')
+        s = 5;
+      else
+        s = 0;
+      }break;
+
+    case 5:{
+      struct __exp_found found_exp = __solve_exp(&input.buf[num1_start], num1_end - num1_start, num2_end - num1_start);
+      found_exp.start_exp_idx = num1_start;
+      return found_exp;
+      }break;
+
+    default:
+      s = 0;
+      break;
+    }
+    i += 1;
+  }
+  return no_exp;
+}
+
+void
+___clear_buf_with_range(int start, int exp_size){
+  for (int i = start; i < start + exp_size; i++)
+    input.buf[i] = '\0';
+}
+
+void
+___put_num_in_buf(char* num, int num_size, int start){
+  for (int i = start; i < num_size + start; i++)
+    input.buf[i] = num[i - start];
+}
+
+void
+___shift_buf_many_times(int shift_count, int change_idx){
+  for (int i = 0; i < shift_count; i++)
+    ___shift_buf(0,change_idx - i);
+};
+
 void
 _handle_custom_commands()
 {
@@ -347,72 +621,91 @@ _handle_custom_commands()
   }
 }
 
-
 void
 ___handle_ctrl_s(int (*getc)(void))
 {
-  int c,prev_e = input.e;
+  int ___inputs_idx[INPUT_BUF] ;
+  for (int i = 0; i < INPUT_BUF; i++)
+    ___inputs_idx[i] = 0;
+  
+  int c;
   while((c = getc()) != C('F'))
   {
-    if (c <= 0)
-    {
+    if (c <= 0 || c == _UP_ARROW || c == _DOWN_ARROW || c == C('S'))
       continue;
-    } 
-    else if (c==8) //backspace
+
+    else if (c == ___BACKSPACE && _arrow == 0) 
     {
-      input.buf[input.e--] = '\0';
+      input.buf[--input.e] = '\0';
       consputc(BACKSPACE);
+      if(___inputs_idx[input.e] == 1)
+        ___inputs_idx[input.e] = 0;
     }
-    else if(input.e-input.r < INPUT_BUF){
-      c = (c == '\r') ? '\n' : c;
-      input.buf[input.e++ % INPUT_BUF] = c;
-      consputc(c);
-    }
-    else
+
+    else if (c == _LEFT_ARROW || c == _RIGHT_ARROW)
     {
-      break;
+      _arrow_key_console_handler(c);
+    }
+
+    else if(input.e-input.r < INPUT_BUF)
+    {
+      c = (c == '\r') ? '\n' : c;
+      if (_arrow == 0)
+      {
+        ___inputs_idx[input.e] = 1;
+        input.buf[input.e++ % INPUT_BUF] = c;
+        consputc(c);
+      }
+      else
+      {
+        _input_in_mid(c);
+        if (c == BACKSPACE || c == ___BACKSPACE)
+        {
+          for (int i = input.e + _arrow - 1; i < INPUT_BUF - 1; i++)
+            ___inputs_idx[i] = ___inputs_idx[i+1];
+        }
+        else
+        {
+          for (int i = INPUT_BUF - 1; i > input.e + _arrow - 1 ; i--)
+            ___inputs_idx[i] = ___inputs_idx[i-1];
+          ___inputs_idx[input.e + _arrow - 1] = 1;
+        }
+      }
+    } 
+    struct __exp_found exp = __find_expression();
+    if (exp.success_flag)
+    {
+      int prev_e = input.e;
+      int init_cursor_pos = _get_cursor_pos(), init_arrow = _arrow;
+      int line_start = init_cursor_pos - init_arrow -prev_e;
+      ___clear_buf_with_range(exp.start_exp_idx,exp.exp_size);
+      ___put_num_in_buf(exp.num_str,exp.num_size,exp.start_exp_idx);
+      int shift_count = exp.exp_size - exp.num_size;
+      int change_idx = exp.start_exp_idx + exp.exp_size ;
+      ___shift_buf_many_times(shift_count,change_idx);
+      _arrow = exp.start_exp_idx + exp.num_size - input.e;
+      _update_cursor( line_start + exp.start_exp_idx +  exp.exp_size,0);// moving curser so clear cmd works
+      ___clear_cmd(prev_e);
+      _write_from_buffer();
+      _update_cursor( line_start + exp.start_exp_idx +  exp.num_size,0);
     }
   }
 
   release(&cons.lock);
 
-  // hard
-  //####################################
-  // int end_flag = 0;
-  // for (int i = prev_e; i < input.e; i++)
-  // {
-  // cprintf("-goog%d: %d-",i,input.buf[i]);
-  //   if (end_flag)
-  //   {
-  //     break;
-  //   }
-  //   if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF)
-  //   {
-  //     end_flag = 1;
-  //     consputc(input.buf[i]);
-  //   }
-  //   else consputc(input.buf[i]);
-  // }
-  // if (end_flag)
-  // {
-  //     cprintf("goog");
-  //     input.w = i;
-  //     wakeup(&input.r);
-  //     _handle_custom_commands();
-  // }
-  //#################################
-
-  // simple
-  //#################################
   int current_e = input.e;
-  for (int i = prev_e; i < current_e; i++)
-  {
-    int offset = i - prev_e, base = current_e;
-    input.buf[base + offset] = input.buf[i];
-    input.e++;
-    consputc(input.buf[i]);
-  }
-  //#################################
+  char buf_copy[INPUT_BUF];
+  for (int i = 0; i < INPUT_BUF; i++) // hard copy
+    buf_copy[i] = input.buf[i];
+
+  int change_idx = current_e + _arrow;
+
+  for(int i = 0; i < INPUT_BUF; i++)
+    if (___inputs_idx[i] == 1)
+      ___update_buffer(buf_copy[i],change_idx++);
+  
+  ___clear_cmd(current_e);
+  _write_from_buffer();
   acquire(&cons.lock);
 }
 
@@ -423,7 +716,8 @@ consoleintr(int (*getc)(void))
 
   acquire(&cons.lock);
   while((c = getc()) >= 0){
-    switch(c){
+    switch(c)
+    {
     case C('P'):  // Process listing.
       // procdump() locks cons.lock indirectly; invoke later
       doprocdump = 1;
@@ -439,7 +733,7 @@ consoleintr(int (*getc)(void))
       if(input.e != input.w){
         if (_arrow==0)
         {
-          input.buf[input.e--] = '\0';
+          input.buf[--input.e] = '\0';
           consputc(BACKSPACE);
         }
         else
@@ -459,8 +753,11 @@ consoleintr(int (*getc)(void))
     
     //handle ctrl + s
     case C('S'):
-
+    {
       ___handle_ctrl_s(getc);
+      int pos = _get_cursor_pos();
+      _update_cursor(pos + _arrow,0);
+    }
       break;
 
     default:
@@ -487,6 +784,23 @@ consoleintr(int (*getc)(void))
       }
       break;
     }
+    struct __exp_found exp = __find_expression();
+    if (exp.success_flag)
+    {
+      int prev_e = input.e;
+      int init_cursor_pos = _get_cursor_pos(), init_arrow = _arrow;
+      int line_start = init_cursor_pos - init_arrow -prev_e;
+      ___clear_buf_with_range(exp.start_exp_idx,exp.exp_size);
+      ___put_num_in_buf(exp.num_str,exp.num_size,exp.start_exp_idx);
+      int shift_count = exp.exp_size - exp.num_size;
+      int change_idx = exp.start_exp_idx + exp.exp_size ;
+      ___shift_buf_many_times(shift_count,change_idx);
+      _arrow = exp.start_exp_idx + exp.num_size - input.e;
+      _update_cursor( line_start + exp.start_exp_idx +  exp.exp_size,0);// moving curser so clear cmd works
+      ___clear_cmd(prev_e);
+      _write_from_buffer();
+      _update_cursor( line_start + exp.start_exp_idx +  exp.num_size,0);
+    }
   }
   release(&cons.lock);
   if(doprocdump) {
@@ -494,20 +808,11 @@ consoleintr(int (*getc)(void))
   }
 }
 
-void
-_print_code_of_char()
-{
-  for(int i = 0; i < INPUT_BUF; i++) {
-    cprintf("%x ",(int)input.buf[i]);
-  }  
-}
-
 int
 consoleread(struct inode *ip, char *dst, int n)
 {
   uint target;
   int c;
-  // _print_code_of_char(); //Used this function to find hex code for arrow keys
 
   iunlock(ip);
   target = n;
