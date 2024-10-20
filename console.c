@@ -505,7 +505,13 @@ __solve_exp(char* txt, int break_index, int end_index)
     float num1_float = num1;
     float r = num1_float / num2;
     exp.num_float = r;
-    exp = __float1p_to_char(r, exp);
+    if (num1_float == 0.)
+    {
+      exp.num_str[0] = '0';
+      exp.num_size = 1;
+    }
+    else
+      exp = __float1p_to_char(r, exp);
     }break;
   
   default:
