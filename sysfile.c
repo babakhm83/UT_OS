@@ -442,3 +442,110 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+// Moves a file from its to another directory written by Babak
+int
+sys_move_file(void)
+{
+  char *src, *dest;
+  if(argstr(0, &src) < 0 || argstr(1, &dest) < 0)
+    return -1;
+  // OPEN SRC
+  int src_fd;
+  struct file *src_f;
+  struct inode *src_ip;
+  begin_op();
+  if((src_ip = namei(src)) == 0){
+    end_op();
+    return -1;
+  }
+  ilock(src_ip);
+  if((src_f = filealloc()) == 0 || (src_fd = fdalloc(src_f)) < 0){
+    if(src_f)
+      fileclose(src_f);
+    iunlockput(src_ip);
+    end_op();
+    return -1;
+  }
+  iunlock(src_ip);
+  src_f->type = FD_INODE;
+  src_f->ip = src_ip;
+  src_f->off = 0;
+  src_f->readable = 1;
+  src_f->writable = 0;
+  // OPEN DEST
+  int dest_fd;
+  struct file *dest_f;
+  struct inode *dest_ip;
+  dest_ip = create(dest, T_FILE, 0, 0);
+  if(dest_ip == 0){
+    end_op();
+    return -1;
+  }
+  if((dest_f = filealloc()) == 0 || (dest_fd = fdalloc(dest_f)) < 0){
+    if(dest_f)
+      fileclose(dest_f);
+    iunlockput(dest_ip);
+    end_op();
+    return -1;
+  }
+  iunlock(dest_ip);
+  dest_f->type = FD_INODE;
+  dest_f->ip = dest_ip;
+  dest_f->off = 0;
+  dest_f->readable = 0;
+  dest_f->writable = 1;
+  // COPY SRC TO DEST
+  int n_read;
+  char buffer[1024]={0};
+  while ((n_read = fileread(src_f, buffer, sizeof(buffer))) > 0) {
+      if (filewrite(dest_f, buffer, n_read) != n_read) {
+          fileclose(src_f);
+          fileclose(dest_f);
+          end_op();
+          return -1;
+      }
+  }
+  // CLEAN
+  myproc()->ofile[src_fd] = 0;
+  fileclose(src_f);
+  myproc()->ofile[dest_fd] = 0;
+  fileclose(dest_f);
+  struct inode *ip, *dp;
+  struct dirent de;
+  char name[DIRSIZ];
+  uint off;
+  if((dp = nameiparent(src, name)) == 0){
+    end_op();
+    return -1;
+  }
+  ilock(dp);
+  // Cannot unlink "." or "..".
+  if(namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
+    goto bad;
+  if((ip = dirlookup(dp, name, &off)) == 0)
+    goto bad;
+  ilock(ip);
+  if(ip->nlink < 1)
+    panic("unlink: nlink < 1");
+  if(ip->type == T_DIR && !isdirempty(ip)){
+    iunlockput(ip);
+    goto bad;
+  }
+  memset(&de, 0, sizeof(de));
+  if(writei(dp, (char*)&de, off, sizeof(de)) != sizeof(de))
+    panic("unlink: writei");
+  if(ip->type == T_DIR){
+    dp->nlink--;
+    iupdate(dp);
+  }
+  iunlockput(dp);
+  ip->nlink--;
+  iupdate(ip);
+  iunlockput(ip);
+  end_op();
+  return 0;
+bad:
+  iunlockput(dp);
+  end_op();
+  return -1;
+}
