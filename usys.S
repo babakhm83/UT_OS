@@ -7,6 +7,13 @@
     movl $SYS_ ## name, %eax; \
     int $T_SYSCALL; \
     ret
+#define SYSCALL_USING_REGISTERS(name) \
+  .globl name; \
+  name: \
+    movl 4(%esp), %ecx; \
+    movl $SYS_ ## name, %eax; \
+    int $T_SYSCALL; \
+    ret
 
 SYSCALL(fork)
 SYSCALL(exit)
@@ -29,3 +36,4 @@ SYSCALL(getpid)
 SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
+SYSCALL_USING_REGISTERS(create_palindrome)

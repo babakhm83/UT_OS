@@ -25,6 +25,9 @@ void            panic(char*) __attribute__((noreturn));
 // exec.c
 int             exec(char*, char**);
 
+// baa.c
+void            create_palindrome(int);
+
 // file.c
 struct file*    filealloc(void);
 void            fileclose(struct file*);
