@@ -532,3 +532,16 @@ procdump(void)
     cprintf("\n");
   }
 }
+void
+create_palindrome(int num) //Babaks
+{
+  int new_num=num;
+  int palnum=num;
+  while (new_num)
+  {
+    palnum=palnum*10+new_num%10;
+    new_num=new_num/10;
+  }
+  cprintf("Palindrome of %d is: %d\n",num,palnum);
+  return;
+}

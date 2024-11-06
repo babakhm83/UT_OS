@@ -25,9 +25,6 @@ void            panic(char*) __attribute__((noreturn));
 // exec.c
 int             exec(char*, char**);
 
-// baa.c
-void            create_palindrome(int);
-
 // file.c
 struct file*    filealloc(void);
 void            fileclose(struct file*);
@@ -123,6 +120,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+void            create_palindrome(int); // Babak
 
 // swtch.S
 void            swtch(struct context**, struct context*);

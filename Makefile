@@ -2,7 +2,6 @@ OBJS = \
 	bio.o\
 	console.o\
 	exec.o\
-	baa.o\
 	file.o\
 	fs.o\
 	ide.o\
@@ -20,7 +19,6 @@ OBJS = \
 	spinlock.o\
 	string.o\
 	swtch.o\
-	sysbaa.o\
 	syscall.o\
 	sysfile.o\
 	sysproc.o\

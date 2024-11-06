@@ -89,3 +89,13 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// Takes an integer and prints its palindrome written by Babak
+int
+sys_create_palindrome(void)
+{
+  struct proc *curproc = myproc();
+  int num = curproc->tf->ecx;
+  create_palindrome(num);
+  return 0;
+}

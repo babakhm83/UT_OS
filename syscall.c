@@ -103,8 +103,8 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
-extern int sys_create_palindrome(void); // _
-extern int sys_move_file(void); // _
+extern int sys_create_palindrome(void); // Babak
+extern int sys_move_file(void); // Babak
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -128,8 +128,8 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
-[SYS_create_palindrome]   sys_create_palindrome, // _
-[SYS_move_file]   sys_move_file, // _
+[SYS_create_palindrome]   sys_create_palindrome, // Babak
+[SYS_move_file]   sys_move_file, // Babak
 };
 
 void
