@@ -105,6 +105,7 @@ extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_create_palindrome(void); // Babak
 extern int sys_move_file(void); // Babak
+extern int sys_sort_syscalls(void); // Babak
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -130,6 +131,7 @@ static int (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_create_palindrome]   sys_create_palindrome, // Babak
 [SYS_move_file]   sys_move_file, // Babak
+[SYS_sort_syscalls]   sys_sort_syscalls, // Babak
 };
 
 void
@@ -139,6 +141,7 @@ syscall(void)
   struct proc *curproc = myproc();
 
   num = curproc->tf->eax;
+  _log_syscall(num);
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     curproc->tf->eax = syscalls[num]();
   } else {

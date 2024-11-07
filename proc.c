@@ -112,6 +112,9 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  for (int i = 0; i < sizeof(p->sc)/sizeof(p->sc[0]); i++)
+    p->sc[i]=0;
+
   return p;
 }
 
@@ -218,6 +221,10 @@ fork(void)
 
   release(&ptable.lock);
 
+  // Clear the system call history of the child.
+  for (int i = 0; i < sizeof(np->sc)/sizeof(np->sc[0]); i++)
+    np->sc[i]=0;
+
   return pid;
 }
 
@@ -293,6 +300,8 @@ wait(void)
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
+        for (int i = 0; i < sizeof(p->sc)/sizeof(p->sc[0]); i++)
+          p->sc[i]=0;
         p->killed = 0;
         p->state = UNUSED;
         release(&ptable.lock);
@@ -533,7 +542,7 @@ procdump(void)
   }
 }
 void
-create_palindrome(int num) //Babaks
+create_palindrome(int num) //Babak
 {
   int new_num=num;
   int palnum=num;
@@ -544,4 +553,33 @@ create_palindrome(int num) //Babaks
   }
   cprintf("Palindrome of %d is: %d\n",num,palnum);
   return;
+}
+void
+_log_syscall(int num)
+{
+  struct proc *curproc = myproc();
+  curproc->sc[num-1]++;
+  return;
+}
+int
+sort_syscalls(int pid)
+{
+  struct proc *p;
+  char *syscall_names[]={"fork","exit","wait","pipe","read","kill","exec","fstat","chdir","dup",
+  "getpid","sbrk","sleep","uptime","open","write","mknod","unlink","link","mkdir","close",
+  "create_palindrome","move_file","sort_syscalls","get_most_invoked_syscall"," list_all_processes"};
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      for (int i = 0; i < sizeof(p->sc)/sizeof(p->sc[0]); i++)
+      {
+        if (p->sc[i])
+          cprintf("%d %s: %d times\n",i+1,syscall_names[i],p->sc[i]);
+      }
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
 }

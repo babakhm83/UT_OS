@@ -99,3 +99,13 @@ sys_create_palindrome(void)
   create_palindrome(num);
   return 0;
 }
+
+// Prints systemcalls invoked by a process, sorted by their number written by Babak
+int
+sys_sort_syscalls(void)
+{
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+  return sort_syscalls(pid);
+}

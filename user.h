@@ -27,6 +27,7 @@ int uptime(void);
 // added system calls
 void create_palindrome(int);
 int move_file(const char*, const char*);
+int sort_syscalls(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

@@ -110,6 +110,7 @@ int             growproc(int);
 int             kill(int);
 struct cpu*     mycpu(void);
 struct proc*    myproc();
+void            _log_syscall();
 void            pinit(void);
 void            procdump(void);
 void            scheduler(void) __attribute__((noreturn));
@@ -121,6 +122,7 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 void            create_palindrome(int); // Babak
+int             sort_syscalls(int); // Babak
 
 // swtch.S
 void            swtch(struct context**, struct context*);
