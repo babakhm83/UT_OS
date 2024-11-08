@@ -109,3 +109,13 @@ sys_sort_syscalls(void)
     return -1;
   return sort_syscalls(pid);
 }
+
+// Prints most invoked systemcall by a process, written by Ali
+int
+sys_get_most_invoked(void)
+{
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+  return get_most_invoked(pid);
+}

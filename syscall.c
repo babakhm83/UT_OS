@@ -106,6 +106,7 @@ extern int sys_uptime(void);
 extern int sys_create_palindrome(void); // Babak
 extern int sys_move_file(void); // Babak
 extern int sys_sort_syscalls(void); // Babak
+extern int sys_get_most_invoked(void); // Ali
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -132,6 +133,7 @@ static int (*syscalls[])(void) = {
 [SYS_create_palindrome]   sys_create_palindrome, // Babak
 [SYS_move_file]   sys_move_file, // Babak
 [SYS_sort_syscalls]   sys_sort_syscalls, // Babak
+[SYS_get_most_invoked]   sys_get_most_invoked, // Ali
 };
 
 void

@@ -583,3 +583,34 @@ sort_syscalls(int pid)
   release(&ptable.lock);
   return -1;
 }
+// Ali
+int get_most_invoked(int pid)
+{
+  struct proc *p;
+  int max = 0;
+  int max_i = -1;
+  char *syscall_names[]={"fork","exit","wait","pipe","read","kill","exec","fstat","chdir","dup",
+  "getpid","sbrk","sleep","uptime","open","write","mknod","unlink","link","mkdir","close",
+  "create_palindrome","move_file","sort_syscalls","get_most_invoked_syscall"," list_all_processes"};
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      for (int i = 0; i < sizeof(p->sc)/sizeof(p->sc[0]); i++)
+      {
+        if (p->sc[i] > max)
+        {
+          max = p->sc[i];
+          max_i = i;
+        }
+      }
+      if (max == 0)
+          cprintf("No system call in process %d!\n",pid);
+      else
+          cprintf("Most invoked system call in process %d %s: %d times\n",pid,syscall_names[max_i],max);
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+}
