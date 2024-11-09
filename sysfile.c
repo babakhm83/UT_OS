@@ -484,6 +484,7 @@ sys_move_file(void)
   if((dest_f = filealloc()) == 0 || (dest_fd = fdalloc(dest_f)) < 0){
     if(dest_f)
       fileclose(dest_f);
+    fileclose(src_f);
     iunlockput(dest_ip);
     end_op();
     return -1;

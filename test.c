@@ -42,5 +42,18 @@ main(int argc, char *argv[]) {
     if(sort_syscalls(atoi(argv[2]))==-1)
       printf(2,"sort_syscalls system call failed\n");
   }
+  else if(!strcmp(argv[1],"4"))
+  {
+    if (argc<3)
+    {
+      printf(2, "usage: test 4 pid...\n");
+      exit();
+    }
+    getpid();
+    getpid();
+    getpid();
+    if(get_most_invoked(atoi(argv[2]))==-1)
+      printf(2,"get_most_invoked_call system call failed\n");
+  }
   exit();
 }

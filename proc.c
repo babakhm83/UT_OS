@@ -555,14 +555,14 @@ create_palindrome(int num) //Babak
   return;
 }
 void
-_log_syscall(int num)
+_log_syscall(int num) //Babak
 {
   struct proc *curproc = myproc();
   curproc->sc[num-1]++;
   return;
 }
 int
-sort_syscalls(int pid)
+sort_syscalls(int pid) //Babak
 {
   struct proc *p;
   char *syscall_names[]={"fork","exit","wait","pipe","read","kill","exec","fstat","chdir","dup",
