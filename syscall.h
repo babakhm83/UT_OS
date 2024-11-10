@@ -24,3 +24,4 @@
 #define SYS_move_file  23
 #define SYS_sort_syscalls 24
 #define SYS_get_most_invoked 25
+#define SYS_list_all_processes 26

@@ -107,33 +107,35 @@ extern int sys_create_palindrome(void); // Babak
 extern int sys_move_file(void); // Babak
 extern int sys_sort_syscalls(void); // Babak
 extern int sys_get_most_invoked(void); // Ali
+extern int sys_list_all_processes(void); // Aidin
 
 static int (*syscalls[])(void) = {
-[SYS_fork]    sys_fork,
-[SYS_exit]    sys_exit,
-[SYS_wait]    sys_wait,
-[SYS_pipe]    sys_pipe,
-[SYS_read]    sys_read,
-[SYS_kill]    sys_kill,
-[SYS_exec]    sys_exec,
-[SYS_fstat]   sys_fstat,
-[SYS_chdir]   sys_chdir,
-[SYS_dup]     sys_dup,
-[SYS_getpid]  sys_getpid,
-[SYS_sbrk]    sys_sbrk,
-[SYS_sleep]   sys_sleep,
-[SYS_uptime]  sys_uptime,
-[SYS_open]    sys_open,
-[SYS_write]   sys_write,
-[SYS_mknod]   sys_mknod,
-[SYS_unlink]  sys_unlink,
-[SYS_link]    sys_link,
-[SYS_mkdir]   sys_mkdir,
-[SYS_close]   sys_close,
-[SYS_create_palindrome]   sys_create_palindrome, // Babak
-[SYS_move_file]   sys_move_file, // Babak
-[SYS_sort_syscalls]   sys_sort_syscalls, // Babak
-[SYS_get_most_invoked]   sys_get_most_invoked, // Ali
+    [SYS_fork] sys_fork,
+    [SYS_exit] sys_exit,
+    [SYS_wait] sys_wait,
+    [SYS_pipe] sys_pipe,
+    [SYS_read] sys_read,
+    [SYS_kill] sys_kill,
+    [SYS_exec] sys_exec,
+    [SYS_fstat] sys_fstat,
+    [SYS_chdir] sys_chdir,
+    [SYS_dup] sys_dup,
+    [SYS_getpid] sys_getpid,
+    [SYS_sbrk] sys_sbrk,
+    [SYS_sleep] sys_sleep,
+    [SYS_uptime] sys_uptime,
+    [SYS_open] sys_open,
+    [SYS_write] sys_write,
+    [SYS_mknod] sys_mknod,
+    [SYS_unlink] sys_unlink,
+    [SYS_link] sys_link,
+    [SYS_mkdir] sys_mkdir,
+    [SYS_close] sys_close,
+    [SYS_create_palindrome] sys_create_palindrome,   // Babak
+    [SYS_move_file] sys_move_file,                   // Babak
+    [SYS_sort_syscalls] sys_sort_syscalls,           // Babak
+    [SYS_get_most_invoked] sys_get_most_invoked,     // Ali
+    [SYS_list_all_processes] sys_list_all_processes, // Aidin
 };
 
 void

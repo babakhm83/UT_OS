@@ -119,3 +119,10 @@ sys_get_most_invoked(void)
     return -1;
   return get_most_invoked(pid);
 }
+
+// List all processes and count of their systemcalls, written by Aidin
+int 
+sys_list_all_processes(void)
+{
+  return list_all_processes();
+}

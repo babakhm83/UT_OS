@@ -55,5 +55,9 @@ main(int argc, char *argv[]) {
     if(get_most_invoked(atoi(argv[2]))==-1)
       printf(2,"get_most_invoked_call system call failed\n");
   }
+  else if(!strcmp(argv[1],"5"))
+  {
+    list_all_processes();
+  }
   exit();
 }
