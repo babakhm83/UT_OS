@@ -115,6 +115,7 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // Clear the system call history of the process.
   for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
     p->sc[i] = 0;
 
@@ -225,10 +226,6 @@ int fork(void)
   np->state = RUNNABLE;
 
   release(&ptable.lock);
-
-  // Clear the system call history of the child.
-  for (int i = 0; i < sizeof(np->sc) / sizeof(np->sc[0]); i++)
-    np->sc[i] = 0;
 
   return pid;
 }
@@ -589,6 +586,7 @@ int sort_syscalls(int pid) // Ali
       return 0;
     }
   }
+  cprintf("No process with id = %d!\n", pid);
   release(&ptable.lock);
   cprintf("sort_syscalls system call failed\n");
   return -1;
