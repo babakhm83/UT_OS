@@ -622,6 +622,7 @@ int get_most_invoked(int pid)
       return 0;
     }
   }
+  cprintf("No process with id = %d!\n", pid);
   release(&ptable.lock);
   return -1;
 }
