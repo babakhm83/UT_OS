@@ -563,13 +563,13 @@ void create_palindrome(int num) // Babak
   cprintf("Palindrome of %d is: %d\n", num, palnum);
   return;
 }
-void _log_syscall(int num) // Babak
+void _log_syscall(int num) //Ali
 {
   struct proc *curproc = myproc();
   curproc->sc[num - 1]++;
   return;
 }
-int sort_syscalls(int pid) // Babak
+int sort_syscalls(int pid) // Ali
 {
   struct proc *p;
   char *syscall_names[] = {"fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup",
@@ -590,6 +590,7 @@ int sort_syscalls(int pid) // Babak
     }
   }
   release(&ptable.lock);
+  cprintf("sort_syscalls system call failed\n");
   return -1;
 }
 // Ali
@@ -624,6 +625,7 @@ int get_most_invoked(int pid)
   }
   cprintf("No process with id = %d!\n", pid);
   release(&ptable.lock);
+  cprintf("get_most_invoked_call system call failed\n");
   return -1;
 }
 
@@ -633,11 +635,13 @@ int list_all_processes(void)
   struct proc *p;
   int sum = 0;
   int p_count = 1;
+  int proc_flag = 0;
   acquire(&ptable.lock);
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->pid)
     {
+      proc_flag = 1;
       sum = 0;
       for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
       {
@@ -648,5 +652,8 @@ int list_all_processes(void)
     }
   }
   release(&ptable.lock);
-  return 0;
+  if (proc_flag)
+    return 0;
+  cprintf("No processes to show\n");
+  return -1;
 }

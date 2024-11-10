@@ -30,7 +30,7 @@ main(int argc, char *argv[]) {
       exit();
     }
     if(move_file(argv[2], argv[3])==-1)
-      printf(2,"move_file system call failed\n");
+      printf(2,"returned -1\n");
   }
   else if(!strcmp(argv[1],"3"))
   {
@@ -40,7 +40,7 @@ main(int argc, char *argv[]) {
       exit();
     }
     if(sort_syscalls(atoi(argv[2]))==-1)
-      printf(2,"sort_syscalls system call failed\n");
+      printf(2,"returned -1\n");
   }
   else if(!strcmp(argv[1],"4"))
   {
@@ -53,11 +53,12 @@ main(int argc, char *argv[]) {
     getpid();
     getpid();
     if(get_most_invoked(atoi(argv[2]))==-1)
-      printf(2,"get_most_invoked_call system call failed\n");
+      printf(2,"returned -1\n");
   }
   else if(!strcmp(argv[1],"5"))
   {
-    list_all_processes();
+    if (list_all_processes() == -1)
+      printf(2,"returned -1\n");
   }
   exit();
 }

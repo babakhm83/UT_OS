@@ -447,22 +447,27 @@ int
 sys_move_file(void)
 {
   char *src, *dest;
-  if(argstr(0, &src) < 0 || argstr(1, &dest) < 0)
+  if(argstr(0, &src) < 0 || argstr(1, &dest) < 0) {
+    cprintf("Error: Invalid source or destination path\n");
     return -1;
+  }
+
   // OPEN SRC
   int src_fd;
   struct file *src_f;
   struct inode *src_ip;
   begin_op();
-  if((src_ip = namei(src)) == 0){
+  if((src_ip = namei(src)) == 0) {
+    cprintf("Error: Source file not found\n");
     end_op();
     return -1;
   }
   ilock(src_ip);
-  if((src_f = filealloc()) == 0 || (src_fd = fdalloc(src_f)) < 0){
+  if((src_f = filealloc()) == 0 || (src_fd = fdalloc(src_f)) < 0) {
     if(src_f)
       fileclose(src_f);
     iunlockput(src_ip);
+    cprintf("Error: Unable to allocate source file or descriptor\n");
     end_op();
     return -1;
   }
@@ -472,20 +477,23 @@ sys_move_file(void)
   src_f->off = 0;
   src_f->readable = 1;
   src_f->writable = 0;
+
   // OPEN DEST
   int dest_fd;
   struct file *dest_f;
   struct inode *dest_ip;
   dest_ip = create(dest, T_FILE, 0, 0);
-  if(dest_ip == 0){
+  if(dest_ip == 0) {
+    cprintf("Error: Unable to create destination file\n");
     end_op();
     return -1;
   }
-  if((dest_f = filealloc()) == 0 || (dest_fd = fdalloc(dest_f)) < 0){
+  if((dest_f = filealloc()) == 0 || (dest_fd = fdalloc(dest_f)) < 0) {
     if(dest_f)
       fileclose(dest_f);
     fileclose(src_f);
     iunlockput(dest_ip);
+    cprintf("Error: Unable to allocate destination file or descriptor\n");
     end_op();
     return -1;
   }
@@ -495,17 +503,20 @@ sys_move_file(void)
   dest_f->off = 0;
   dest_f->readable = 0;
   dest_f->writable = 1;
+
   // COPY SRC TO DEST
   int n_read;
-  char buffer[1024]={0};
+  char buffer[1024] = {0};
   while ((n_read = fileread(src_f, buffer, sizeof(buffer))) > 0) {
       if (filewrite(dest_f, buffer, n_read) != n_read) {
           fileclose(src_f);
           fileclose(dest_f);
+          cprintf("Error: Failed to write to destination file\n");
           end_op();
           return -1;
       }
   }
+
   // CLEAN
   myproc()->ofile[src_fd] = 0;
   fileclose(src_f);
@@ -515,27 +526,36 @@ sys_move_file(void)
   struct dirent de;
   char name[DIRSIZ];
   uint off;
-  if((dp = nameiparent(src, name)) == 0){
+  if((dp = nameiparent(src, name)) == 0) {
+    cprintf("Error: Unable to locate parent directory for source file\n");
     end_op();
     return -1;
   }
   ilock(dp);
+
   // Cannot unlink "." or "..".
-  if(namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
+  if(namecmp(name, ".") == 0 || namecmp(name, "..") == 0) {
+    cprintf("Error: Cannot delete '.' or '..'\n");
     goto bad;
-  if((ip = dirlookup(dp, name, &off)) == 0)
+  }
+  if((ip = dirlookup(dp, name, &off)) == 0) {
+    cprintf("Error: Source file not found in parent directory\n");
     goto bad;
+  }
   ilock(ip);
-  if(ip->nlink < 1)
+  if(ip->nlink < 1) {
     panic("unlink: nlink < 1");
-  if(ip->type == T_DIR && !isdirempty(ip)){
+  }
+  if(ip->type == T_DIR && !isdirempty(ip)) {
     iunlockput(ip);
+    cprintf("Error: Directory is not empty\n");
     goto bad;
   }
   memset(&de, 0, sizeof(de));
-  if(writei(dp, (char*)&de, off, sizeof(de)) != sizeof(de))
+  if(writei(dp, (char*)&de, off, sizeof(de)) != sizeof(de)) {
     panic("unlink: writei");
-  if(ip->type == T_DIR){
+  }
+  if(ip->type == T_DIR) {
     dp->nlink--;
     iupdate(dp);
   }
@@ -545,8 +565,10 @@ sys_move_file(void)
   iunlockput(ip);
   end_op();
   return 0;
+
 bad:
   iunlockput(dp);
+  cprintf("Error: Failed to remove source file\n");
   end_op();
   return -1;
 }

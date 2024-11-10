@@ -7,6 +7,7 @@
     movl $SYS_ ## name, %eax; \
     int $T_SYSCALL; \
     ret
+    
 #define SYSCALL_USING_REGISTERS(name) \
   .globl name; \
   name: \
