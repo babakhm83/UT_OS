@@ -30,6 +30,7 @@ int move_file(const char*, const char*);
 int sort_syscalls(int);
 int get_most_invoked(int);
 int list_all_processes(void);
+int report_all_processes(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

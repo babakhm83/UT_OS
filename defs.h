@@ -125,6 +125,7 @@ void            create_palindrome(int); // Babak
 int             sort_syscalls(int); // Babak
 int             get_most_invoked(int); // Ali
 int             list_all_processes(void); // Aidin
+int             report_process(int); // Babak
 
 // swtch.S
 void            swtch(struct context**, struct context*);

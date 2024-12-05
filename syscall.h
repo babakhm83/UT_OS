@@ -25,3 +25,4 @@
 #define SYS_sort_syscalls 24
 #define SYS_get_most_invoked 25
 #define SYS_list_all_processes 26
+#define SYS_report_all_processes 27

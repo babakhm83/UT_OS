@@ -115,10 +115,6 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
-  // Clear the system call history of the process.
-  for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
-    p->sc[i] = 0;
-
   return p;
 }
 
@@ -217,6 +213,16 @@ int fork(void)
       np->ofile[i] = filedup(curproc->ofile[i]);
   np->cwd = idup(curproc->cwd);
 
+  // Clear the system call history of the process.
+  for (int i = 0; i < sizeof(np->sc) / sizeof(np->sc[0]); i++)
+    np->sc[i] = 0;
+  np->queue=2;
+  np->wait_time=0;
+  np->confidence=50;
+  np->burst_time=2;
+  np->consecutive_runs=0;
+  np->arrival=ticks;
+
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
@@ -309,6 +315,12 @@ int wait(void)
         p->name[0] = 0;
         for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
           p->sc[i] = 0;
+        p->queue=2;
+        p->wait_time=0;
+        p->confidence=50;
+        p->burst_time=2;
+        p->consecutive_runs=0;
+        p->arrival=ticks;
         p->killed = 0;
         p->state = UNUSED;
         release(&ptable.lock);
@@ -341,7 +353,7 @@ void scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-
+  // _RR_scheduler();
   for (;;)
   {
     // Enable interrupts on this processor.
@@ -548,6 +560,24 @@ void procdump(void)
     cprintf("\n");
   }
 }
+// void _RR_scheduler(){
+//   static int _index=0;
+//   struct proc *p;
+//   struct cpu *c = mycpu();
+//   c->proc = 0;
+//   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+//   {
+//     if (p->state != RUNNABLE)
+//       continue;
+//     c->proc = p;
+//     switchuvm(p);
+//     p->state = RUNNING;
+
+//     swtch(&(c->scheduler), p->context);
+//     switchkvm();
+//     c->proc = 0;
+//   }
+// }
 void create_palindrome(int num) // Babak
 {
   int new_num = num;
@@ -654,4 +684,26 @@ int list_all_processes(void)
     return 0;
   cprintf("No processes to show\n");
   return -1;
+}
+// Babak
+int report_all_processes(void)
+{
+  char *states[] = {
+      [UNUSED] "unused",
+      [EMBRYO] "embryo",
+      [SLEEPING] "sleep ",
+      [RUNNABLE] "runble",
+      [RUNNING] "run   ",
+      [ZOMBIE] "zombie"};
+  struct proc *p;
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if(p->pid==UNUSED)
+      continue;
+    cprintf("%s\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d", 
+    p->name,p->pid,states[p->state],p->queue,p->wait_time,p->confidence,p->burst_time,p->consecutive_runs,p->arrival);
+  }
+  release(&ptable.lock);
+  return 0;
 }

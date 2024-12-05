@@ -126,3 +126,10 @@ sys_list_all_processes(void)
 {
   return list_all_processes();
 }
+
+// Print information about a process given its pid, written by Babak
+int  
+sys_report_all_processes(void)
+{
+  return report_all_processes();
+}
