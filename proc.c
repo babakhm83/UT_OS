@@ -603,9 +603,6 @@ void _log_syscall(int num) //Ali
 int sort_syscalls(int pid) // Ali
 {
   struct proc *p;
-  char *syscall_names[] = {"fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup",
-                           "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close",
-                           "create_palindrome", "move_file", "sort_syscalls", "get_most_invoked_syscall", " list_all_processes"};
   acquire(&ptable.lock);
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
@@ -631,9 +628,7 @@ int get_most_invoked(int pid)
   struct proc *p;
   int max = 0;
   int max_i = -1;
-  char *syscall_names[] = {"fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup",
-                           "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close",
-                           "create_palindrome", "move_file", "sort_syscalls", "get_most_invoked_syscall", " list_all_processes"};
+
   acquire(&ptable.lock);
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
@@ -687,6 +682,40 @@ int list_all_processes(void)
   if (proc_flag)
     return 0;
   cprintf("No processes to show\n");
+  return -1;
+}
+// Babak
+int set_sjf_info(int pid,int burst,int confidence)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->pid == pid)
+    {
+      p->burst_time=burst;
+      p->confidence=confidence;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+}
+// Babak
+int set_queue(int pid,int queue)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->pid == pid)
+    {
+      p->queue=queue;
+      return 0;
+    }
+  }
+  release(&ptable.lock);
   return -1;
 }
 // Babak

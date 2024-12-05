@@ -127,6 +127,32 @@ sys_list_all_processes(void)
   return list_all_processes();
 }
 
+// Set confidence and burst time for a process, written by Babak
+int  
+sys_set_sjf_info(void)
+{
+  int pid,burst,confidence;
+  if(argint(0, &pid) < 0)
+    return -1;
+  if(argint(1, &burst) < 0)
+    return -1;
+  if(argint(2, &confidence) < 0)
+    return -1;
+  return set_sjf_info(pid,burst,confidence);
+}
+
+// Set queue number of a process, written by Babak
+int  
+sys_set_queue(void)
+{
+  int pid,queue;
+  if(argint(0, &pid) < 0)
+    return -1;
+  if(argint(1, &queue) < 0)
+    return -1;
+  return set_queue(pid,queue);
+}
+
 // Print information about a process given its pid, written by Babak
 int  
 sys_report_all_processes(void)

@@ -30,6 +30,8 @@ int move_file(const char*, const char*);
 int sort_syscalls(int);
 int get_most_invoked(int);
 int list_all_processes(void);
+int set_sjf_info(int,int,int);
+int set_queue(int,int);
 int report_all_processes(void);
 
 // ulib.c

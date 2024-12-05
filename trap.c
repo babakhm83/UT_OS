@@ -49,6 +49,7 @@ void _report_time(){
 void
 trap(struct trapframe *tf)
 {
+  // cprintf("test\n");
   if(tf->trapno == T_SYSCALL){
     if(myproc()->killed)
       exit();
@@ -65,8 +66,6 @@ trap(struct trapframe *tf)
       acquire(&tickslock);
       ticks++;
       // _report_time();
-      if(myproc())
-        cprintf("Pid: %d Consecutive runs: %d\n",myproc()->pid,myproc()->consecutive_runs);
       wakeup(&ticks);
       release(&tickslock);
     }
@@ -119,8 +118,10 @@ trap(struct trapframe *tf)
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
   if(myproc() && myproc()->state == RUNNING &&
-     tf->trapno == T_IRQ0+IRQ_TIMER)
-    yield();
+     tf->trapno == T_IRQ0+IRQ_TIMER){
+      // cprintf("Pid: %d Consecutive runs: %d CPU: %d %d\n",myproc()->pid,myproc()->consecutive_runs,cpuid(),NCPU);
+      yield();
+    }
 
   // Check if the process has been killed since we yielded
   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)

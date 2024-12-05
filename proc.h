@@ -34,6 +34,11 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+static const char *syscall_names[] = {"fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup",
+                          "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close",
+                          "create_palindrome", "move_file", "sort_syscalls", "get_most_invoked_syscall", " list_all_processes",
+                          "set_sjf_info","set_queue","report_all_processes"};
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -49,7 +54,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int sc[27]; //Babak          // Array storing the number of times each system call is invoked by this process
+  int sc[sizeof(syscall_names)/sizeof(char*)]; //Babak          // Array storing the number of times each system call is invoked by this process
   int queue; //Babak           // The scheduling queue
   int wait_time; //Babak       // Total wait time
   int confidence; //Babak      // Confidence in burst time

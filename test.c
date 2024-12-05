@@ -64,6 +64,8 @@ void ca2_test(int argc, char *argv[]){
 void heavy_calculation(){
   for (int i = 0; i < 1e10; i++);
   printf(2,"\nDone\n");
+  wait();
+  exit();
 }
 void ca3_test(int argc, char *argv[]){
   if (argc<2)
@@ -73,8 +75,8 @@ void ca3_test(int argc, char *argv[]){
   }
   if (!strcmp(argv[1],"0")){
     fork();
+    fork();
     heavy_calculation();
-    wait();
   }
   if (!strcmp(argv[1],"1"))
     report_all_processes();

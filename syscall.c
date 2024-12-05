@@ -108,6 +108,8 @@ extern int sys_move_file(void); // Babak
 extern int sys_sort_syscalls(void); // Babak
 extern int sys_get_most_invoked(void); // Ali
 extern int sys_list_all_processes(void); // Aidin
+extern int sys_set_sjf_info(int,int,int); // Babak
+extern int sys_set_queue(int,int); // Babak
 extern int sys_report_all_processes(void); // Babak
 
 static int (*syscalls[])(void) = {
@@ -137,6 +139,8 @@ static int (*syscalls[])(void) = {
     [SYS_sort_syscalls] sys_sort_syscalls,           // Babak
     [SYS_get_most_invoked] sys_get_most_invoked,     // Ali
     [SYS_list_all_processes] sys_list_all_processes, // Aidin
+    [SYS_set_sjf_info] sys_set_sjf_info, // Babak
+    [SYS_set_queue] sys_set_queue, // Babak
     [SYS_report_all_processes] sys_report_all_processes, // Babak
 };
 
