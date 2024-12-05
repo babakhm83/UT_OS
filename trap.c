@@ -7,6 +7,7 @@
 #include "x86.h"
 #include "traps.h"
 #include "spinlock.h"
+#include "date.h"
 
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
@@ -32,6 +33,18 @@ idtinit(void)
   lidt(idt, sizeof(idt));
 }
 
+void _report_time(){
+  static uint last_ticks;
+  static struct rtcdate last_time;
+  struct rtcdate cur_time;
+  cmostime(&cur_time);
+  if(cur_time.second-last_time.second==1){
+    cprintf("Each second the clock ticks %d times!\n",ticks-last_ticks);
+    last_ticks=ticks;
+  }
+  last_time=cur_time;
+}
+
 //PAGEBREAK: 41
 void
 trap(struct trapframe *tf)
@@ -51,6 +64,7 @@ trap(struct trapframe *tf)
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
+      // _report_time();
       wakeup(&ticks);
       release(&tickslock);
     }
