@@ -118,7 +118,7 @@ found:
   // Clear the system call history of the process.
   for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
     p->sc[i] = 0;
-  p->queue=0;
+  p->queue=2;
   p->wait_time=0;
   p->confidence=50;
   p->burst_time=2;
@@ -314,7 +314,7 @@ int wait(void)
         p->name[0] = 0;
         for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
           p->sc[i] = 0;
-        p->queue=0;
+        p->queue=2;
         p->wait_time=0;
         p->confidence=50;
         p->burst_time=2;
@@ -428,7 +428,26 @@ void scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    if((p_index=_FCFS_scheduler())!=-1){
+    int i=0;
+    while(i<6)
+    {
+      if(i<3)
+        p_index=_RR_scheduler();
+      else if(i<5)
+        p_index=_SJF_scheduler();
+      else
+        p_index=_FCFS_scheduler();
+      if(p_index==-1)
+      {
+        if(i<3)
+          i=3;
+        else if(i<5)
+          i=5;
+        else
+          break;
+        continue;
+      }
+      i++;
       p=&ptable.proc[p_index];
       c->proc = p;
       switchuvm(p);
