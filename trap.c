@@ -65,6 +65,8 @@ trap(struct trapframe *tf)
       acquire(&tickslock);
       ticks++;
       // _report_time();
+      if(myproc())
+        cprintf("Pid: %d Consecutive runs: %d\n",myproc()->pid,myproc()->consecutive_runs);
       wakeup(&ticks);
       release(&tickslock);
     }

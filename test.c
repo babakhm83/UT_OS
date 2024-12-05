@@ -1,9 +1,8 @@
 #include "types.h"
 #include "user.h"
-
 // Written by Babak
-int
-main(int argc, char *argv[]) {
+
+void ca2_test(int argc, char *argv[]){
   int pid = getpid();
   if (argc<2)
   {
@@ -60,5 +59,34 @@ main(int argc, char *argv[]) {
     if (list_all_processes() == -1)
       printf(2,"returned -1\n");
   }
+  exit();
+}
+void heavy_calculation(){
+  for (int i = 0; i < 1e10; i++);
+  printf(2,"\nDone\n");
+}
+void ca3_test(int argc, char *argv[]){
+  if (argc<2)
+  {
+    printf(2, "usage: test system_call...\n");
+    exit();
+  }
+  if (!strcmp(argv[1],"0")){
+    fork();
+    heavy_calculation();
+    wait();
+  }
+  if (!strcmp(argv[1],"1"))
+    report_all_processes();
+  exit();
+}
+int
+main(int argc, char *argv[]) {
+  if(!strcmp(argv[argc-1],"2"))
+    ca2_test(argc-1,argv);
+  else if(!strcmp(argv[argc-1],"3"))
+    ca3_test(argc-1,argv);
+  else
+    printf(2, "usage: test ca ...\n");
   exit();
 }

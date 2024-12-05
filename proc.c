@@ -115,6 +115,15 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // Clear the system call history of the process.
+  for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
+    p->sc[i] = 0;
+  p->queue=2;
+  p->wait_time=0;
+  p->confidence=50;
+  p->burst_time=2;
+  p->consecutive_runs=0;
+  p->arrival=ticks;
   return p;
 }
 
@@ -212,16 +221,6 @@ int fork(void)
     if (curproc->ofile[i])
       np->ofile[i] = filedup(curproc->ofile[i]);
   np->cwd = idup(curproc->cwd);
-
-  // Clear the system call history of the process.
-  for (int i = 0; i < sizeof(np->sc) / sizeof(np->sc[0]); i++)
-    np->sc[i] = 0;
-  np->queue=2;
-  np->wait_time=0;
-  np->confidence=50;
-  np->burst_time=2;
-  np->consecutive_runs=0;
-  np->arrival=ticks;
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
@@ -340,6 +339,18 @@ int wait(void)
   }
 }
 
+int _RR_scheduler(){
+  static int index=0;
+  for (int i=0; i<NPROC; i++)
+  {
+    index=(index+1)%NPROC;
+    if (ptable.proc[index].state != RUNNABLE)
+      continue;
+    return index;
+  }
+  return -1;
+}
+
 // PAGEBREAK: 42
 //  Per-CPU process scheduler.
 //  Each CPU calls scheduler() after setting itself up.
@@ -350,10 +361,10 @@ int wait(void)
 //       via swtch back to the scheduler.
 void scheduler(void)
 {
+  int p_index;
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  // _RR_scheduler();
   for (;;)
   {
     // Enable interrupts on this processor.
@@ -361,24 +372,18 @@ void scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    {
-      if (p->state != RUNNABLE)
-        continue;
-
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
+    if((p_index=_RR_scheduler())!=-1){
+      p=&ptable.proc[p_index];
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+      p->consecutive_runs=1;
     }
     release(&ptable.lock);
   }
@@ -409,12 +414,29 @@ void sched(void)
   mycpu()->intena = intena;
 }
 
+int _should_yield(){
+  struct proc *p = myproc();
+  switch (p->queue)
+  {
+  case 2:
+    return (p->consecutive_runs==5);
+  
+  default:
+    return 1;
+  }
+}
+
 // Give up the CPU for one scheduling round.
 void yield(void)
 {
   acquire(&ptable.lock); // DOC: yieldlock
-  myproc()->state = RUNNABLE;
-  sched();
+  if(_should_yield()){
+    myproc()->state = RUNNABLE;
+    sched();
+  }
+  else{
+    myproc()->consecutive_runs++;
+  }
   release(&ptable.lock);
 }
 
@@ -560,24 +582,6 @@ void procdump(void)
     cprintf("\n");
   }
 }
-// void _RR_scheduler(){
-//   static int _index=0;
-//   struct proc *p;
-//   struct cpu *c = mycpu();
-//   c->proc = 0;
-//   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-//   {
-//     if (p->state != RUNNABLE)
-//       continue;
-//     c->proc = p;
-//     switchuvm(p);
-//     p->state = RUNNING;
-
-//     swtch(&(c->scheduler), p->context);
-//     switchkvm();
-//     c->proc = 0;
-//   }
-// }
 void create_palindrome(int num) // Babak
 {
   int new_num = num;
@@ -697,11 +701,12 @@ int report_all_processes(void)
       [ZOMBIE] "zombie"};
   struct proc *p;
   acquire(&ptable.lock);
+  cprintf("Name\tPid\tState\tQueue\tWait time\tConfidence\tBurst time\tConsecutive runs\tArrival\n");
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if(p->pid==UNUSED)
       continue;
-    cprintf("%s\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d", 
+    cprintf("%s\t%d\t%s\t%d\t%d\t\t%d\t\t%d\t\t%d\t\t\t%d\n", 
     p->name,p->pid,states[p->state],p->queue,p->wait_time,p->confidence,p->burst_time,p->consecutive_runs,p->arrival);
   }
   release(&ptable.lock);

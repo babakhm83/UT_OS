@@ -49,12 +49,12 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int sc[26]; //Babak          // Array storing the number of times each system call is invoked by this process
+  int sc[27]; //Babak          // Array storing the number of times each system call is invoked by this process
   int queue; //Babak           // The scheduling queue
   int wait_time; //Babak       // Total wait time
   int confidence; //Babak      // Confidence in burst time
   int burst_time; //Babak      // Burst time
-  int consecutive_runs; //Babak // Maximum number of consecutive runs
+  int consecutive_runs; //Babak // Last number of consecutive runs
   int arrival; //Babak         // Time of arrival
 };
 
