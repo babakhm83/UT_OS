@@ -118,7 +118,7 @@ found:
   // Clear the system call history of the process.
   for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
     p->sc[i] = 0;
-  p->queue=2;
+  p->queue=0;
   p->wait_time=0;
   p->confidence=50;
   p->burst_time=2;
@@ -314,7 +314,7 @@ int wait(void)
         p->name[0] = 0;
         for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
           p->sc[i] = 0;
-        p->queue=2;
+        p->queue=0;
         p->wait_time=0;
         p->confidence=50;
         p->burst_time=2;
@@ -349,6 +349,21 @@ int _RR_scheduler(){
     return index;
   }
   return -1;
+}
+
+int _FCFS_scheduler(){
+  int min_val=1e9,min_idx=-1;
+  for (int i = 0; i < NPROC; i++)
+  {
+    if (ptable.proc[i].state != RUNNABLE || ptable.proc[i].queue!=0)
+      continue;
+    if(min_val>ptable.proc[i].arrival)
+    {
+      min_val = ptable.proc[i].arrival;
+      min_idx = i;
+    }
+  }
+  return min_idx;
 }
 
 int _SJF_scheduler(){
@@ -413,7 +428,7 @@ void scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    if((p_index=_SJF_scheduler())!=-1){
+    if((p_index=_FCFS_scheduler())!=-1){
       p=&ptable.proc[p_index];
       c->proc = p;
       switchuvm(p);
@@ -459,6 +474,7 @@ int _should_yield(){
   struct proc *p = myproc();
   switch (p->queue)
   {
+  case 0:
   case 1:
     return 0;
   case 2:
