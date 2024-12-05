@@ -344,10 +344,51 @@ int _RR_scheduler(){
   for (int i=0; i<NPROC; i++)
   {
     index=(index+1)%NPROC;
-    if (ptable.proc[index].state != RUNNABLE)
+    if (ptable.proc[index].state != RUNNABLE || ptable.proc[index].queue!=2)
       continue;
     return index;
   }
+  return -1;
+}
+
+int _SJF_scheduler(){
+  int p[NPROC];
+
+  int min_val=0,new_min=1e9;
+  int idx = 0;
+  while(idx<NPROC)
+  {
+    new_min=1e9;
+    int flag=1;
+    for (int j=0; j<NPROC; j++)
+    {
+      if (ptable.proc[j].state != RUNNABLE || ptable.proc[j].queue!=1)
+        continue;
+      if(min_val<ptable.proc[j].burst_time){
+        new_min=(new_min<ptable.proc[j].burst_time) ? new_min : ptable.proc[j].burst_time;
+        flag=0;
+      }
+      else if(min_val==ptable.proc[j].burst_time){
+        p[idx++]=j;
+        flag=0;
+      }
+    }
+    min_val=new_min;
+    if(flag)
+      break;
+  }
+  static unsigned long int seed = 1;
+  for (int i = 0; i < idx; i++)
+  {
+    int rand=((unsigned int)(seed / 65536) % 32768)%100;
+    seed= seed * 1103515243 + 12345;
+    if(rand<ptable.proc[p[i]].confidence)
+    {
+      return p[i];
+    }
+  }
+  if(idx)
+    return p[idx-1];
   return -1;
 }
 
@@ -372,7 +413,7 @@ void scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    if((p_index=_RR_scheduler())!=-1){
+    if((p_index=_SJF_scheduler())!=-1){
       p=&ptable.proc[p_index];
       c->proc = p;
       switchuvm(p);
@@ -418,6 +459,8 @@ int _should_yield(){
   struct proc *p = myproc();
   switch (p->queue)
   {
+  case 1:
+    return 0;
   case 2:
     return (p->consecutive_runs==5);
   
@@ -712,6 +755,7 @@ int set_queue(int pid,int queue)
     if (p->pid == pid)
     {
       p->queue=queue;
+      p->arrival=ticks;
       return 0;
     }
   }

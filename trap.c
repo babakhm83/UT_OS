@@ -49,7 +49,6 @@ void _report_time(){
 void
 trap(struct trapframe *tf)
 {
-  // cprintf("test\n");
   if(tf->trapno == T_SYSCALL){
     if(myproc()->killed)
       exit();
