@@ -62,8 +62,10 @@ void ca2_test(int argc, char *argv[]){
   exit();
 }
 void heavy_calculation(){
-  for (int i = 0; i < 1e10; i++);
+  for (int i = 0; i < 1e8; i++);
   printf(2,"\nDone\n");
+  wait();
+  wait();
   wait();
   exit();
 }

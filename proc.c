@@ -417,7 +417,7 @@ int _SJF_scheduler(){
 //       via swtch back to the scheduler.
 void scheduler(void)
 {
-  int p_index;
+  int p_index,queue=3;
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
@@ -425,29 +425,35 @@ void scheduler(void)
   {
     // Enable interrupts on this processor.
     sti();
-
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    int i=0;
-    while(i<6)
+    do
     {
-      if(i<3)
-        p_index=_RR_scheduler();
-      else if(i<5)
+      if(mycpu()->_consecutive_runs_queue==0)
+        queue=(queue+1)%3;
+      switch (queue)
+      {
+      case 0:
         p_index=_SJF_scheduler();
-      else
+        break;
+      case 1:
         p_index=_FCFS_scheduler();
+        break;
+      case 2:
+        p_index=_RR_scheduler();
+        break;
+      
+      default:
+        p_index=_RR_scheduler();
+        break;
+      }
       if(p_index==-1)
       {
-        if(i<3)
-          i=3;
-        else if(i<5)
-          i=5;
-        else
+        mycpu()->_consecutive_runs_queue=0;
+        if(!(queue==sizeof(queue_weights)/sizeof(queue_weights[0]) && mycpu()->_consecutive_runs_queue==0))
           break;
         continue;
       }
-      i++;
       p=&ptable.proc[p_index];
       c->proc = p;
       switchuvm(p);
@@ -459,11 +465,10 @@ void scheduler(void)
       // It should have changed its p->state before coming back.
       c->proc = 0;
       p->consecutive_runs=1;
-    }
+    }while (!(queue==sizeof(queue_weights)/sizeof(queue_weights[0]) && mycpu()->_consecutive_runs_queue==0));
     release(&ptable.lock);
   }
 }
-
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
@@ -491,6 +496,14 @@ void sched(void)
 
 int _should_yield(){
   struct proc *p = myproc();
+  int queue_time_slice=time_slice*queue_weights[p->queue];
+  if(mycpu()->_consecutive_runs_queue==queue_time_slice)
+  {
+    mycpu()->_consecutive_runs_queue=0;
+    return 1;
+  }
+  else
+    mycpu()->_consecutive_runs_queue++;
   switch (p->queue)
   {
   case 0:
@@ -507,6 +520,8 @@ int _should_yield(){
 // Give up the CPU for one scheduling round.
 void yield(void)
 {
+  // cprintf("lol");
+    // cprintf("%d %d ",mycpu()->_consecutive_runs_queue, queue_time_slice);
   acquire(&ptable.lock); // DOC: yieldlock
   if(_should_yield()){
     myproc()->state = RUNNABLE;

@@ -8,10 +8,14 @@ struct cpu {
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
   struct proc *proc;           // The process running on this cpu or null
+  int _consecutive_runs_queue; // The number of times a process from the last queue has been running.
 };
 
 extern struct cpu cpus[NCPU];
 extern int ncpu;
+
+static const int time_slice=10;
+static const int queue_weights[3]={1,2,3};
 
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.
