@@ -118,7 +118,7 @@ found:
   // Clear the system call history of the process.
   for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
     p->sc[i] = 0;
-  p->queue=2;
+  p->queue=0;
   p->wait_time=0;
   p->confidence=50;
   p->burst_time=2;
@@ -201,7 +201,6 @@ int fork(void)
   {
     return -1;
   }
-
   // Copy process state from proc.
   if ((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0)
   {
@@ -229,6 +228,8 @@ int fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  if(pid>2)
+    np->queue=2;
 
   release(&ptable.lock);
 
@@ -314,7 +315,7 @@ int wait(void)
         p->name[0] = 0;
         for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
           p->sc[i] = 0;
-        p->queue=2;
+        p->queue=0;
         p->wait_time=0;
         p->confidence=50;
         p->burst_time=2;
@@ -337,6 +338,23 @@ int wait(void)
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(curproc, &ptable.lock); // DOC: wait-sleep
   }
+}
+
+void _aging()
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if(p->state==RUNNABLE && ++p->wait_time>=800 && p->queue)
+    {
+      p->queue--;
+      p->arrival=ticks;
+      p->wait_time=0;
+    }
+  }
+  release(&ptable.lock);
+  return;
 }
 
 int _RR_scheduler(){
@@ -455,6 +473,7 @@ void scheduler(void)
         continue;
       }
       p=&ptable.proc[p_index];
+      p->wait_time=0;
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -520,8 +539,7 @@ int _should_yield(){
 // Give up the CPU for one scheduling round.
 void yield(void)
 {
-  // cprintf("lol");
-    // cprintf("%d %d ",mycpu()->_consecutive_runs_queue, queue_time_slice);
+  // cprintf("%d %d ",mycpu()->_consecutive_runs_queue, queue_time_slice);
   acquire(&ptable.lock); // DOC: yieldlock
   if(_should_yield()){
     myproc()->state = RUNNABLE;
@@ -798,12 +816,27 @@ int set_sjf_info(int pid,int burst,int confidence)
 // Babak
 int set_queue(int pid,int queue)
 {
+  if(pid<=0)
+  {
+    cprintf("Invalid pid\n");
+    return -1;
+  }
+  if(queue>3 || queue < 0)
+  {
+    cprintf("Invalid queue\n");
+    return -1;
+  }
   struct proc *p;
   acquire(&ptable.lock);
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->pid == pid)
     {
+      if(p->queue==queue)
+      {
+        cprintf("The process with pid %d is already in queue %d\n",pid,queue);
+        return -1;
+      }
       p->queue=queue;
       p->arrival=ticks;
       return 0;

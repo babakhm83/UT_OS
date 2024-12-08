@@ -121,6 +121,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+void            _aging(void); // Babak
 void            create_palindrome(int); // Babak
 int             sort_syscalls(int); // Babak
 int             get_most_invoked(int); // Ali
