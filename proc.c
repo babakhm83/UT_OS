@@ -362,7 +362,7 @@ int _RR_scheduler(){
   for (int i=0; i<NPROC; i++)
   {
     index=(index+1)%NPROC;
-    if (ptable.proc[index].state != RUNNABLE || ptable.proc[index].queue!=2)
+    if (ptable.proc[index].state != RUNNABLE || ptable.proc[index].queue!=0)
       continue;
     return index;
   }
@@ -373,7 +373,7 @@ int _FCFS_scheduler(){
   int min_val=1e9,min_idx=-1;
   for (int i = 0; i < NPROC; i++)
   {
-    if (ptable.proc[i].state != RUNNABLE || ptable.proc[i].queue!=0)
+    if (ptable.proc[i].state != RUNNABLE || ptable.proc[i].queue!=2)
       continue;
     if(min_val>ptable.proc[i].arrival)
     {
@@ -452,13 +452,13 @@ void scheduler(void)
       switch (queue)
       {
       case 0:
-        p_index=_SJF_scheduler();
+        p_index=_RR_scheduler();
         break;
       case 1:
-        p_index=_FCFS_scheduler();
+        p_index=_SJF_scheduler();
         break;
       case 2:
-        p_index=_RR_scheduler();
+        p_index=_FCFS_scheduler();
         break;
       
       default:
@@ -526,10 +526,10 @@ int _should_yield(){
   switch (p->queue)
   {
   case 0:
-  case 1:
-    return 0;
-  case 2:
     return (p->consecutive_runs==5);
+  case 1:
+  case 2:
+    return 0;
   
   default:
     return 1;
