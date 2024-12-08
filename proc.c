@@ -234,9 +234,9 @@ int fork(void)
   pid = np->pid;
   acquire(&ptable.lock);
 
-  np->state = RUNNABLE;
-  if(pid>2)
+  if(curproc->pid>2 && pid>2)
     np->queue=2;
+  np->state = RUNNABLE;
 
   release(&ptable.lock);
 
@@ -353,8 +353,9 @@ void _aging()
   acquire(&ptable.lock);
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
-    if(p->state==RUNNABLE && ++p->wait_time>=800 && p->queue)
+    if(p->state==RUNNABLE && ++p->wait_time>=MAX_WAIT_TIME && p->queue)
     {
+      cprintf("Process: %d has been moved from queue %d to queue %d due to aging.\n",p->pid,p->queue,p->queue-1);
       p->queue--;
       p->arrival=ticks;
       p->wait_time=0;
@@ -365,29 +366,12 @@ void _aging()
 }
 
 int _RR_scheduler(){
-  struct cpu *c = mycpu();
   static int index=0;
-  struct proc *p;
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-  {
-    if(p->pid==c->_last_pid_queue[0])
-    {
-      if (p->state != RUNNABLE || 
-      p->queue!=0 || p->consecutive_runs==5)
-      {
-        if(p->consecutive_runs==5)
-          p->consecutive_runs=0;
-        continue;
-      }
-      return p-ptable.proc;
-    }
-  }
   for (int i=0; i<NPROC; i++)
   {
     index=(index+1)%NPROC;
     if (ptable.proc[index].state != RUNNABLE || ptable.proc[index].queue!=0)
       continue;
-    p->consecutive_runs=1;
     return index;
   }
   return -1;
@@ -395,7 +379,6 @@ int _RR_scheduler(){
 
 int _SJF_scheduler(){
   int p_idx[NPROC];
-  struct cpu *c = mycpu();
   int min_val=0,new_min=1e9;
   int idx = 0;
   while(idx<NPROC)
@@ -407,8 +390,6 @@ int _SJF_scheduler(){
     {
       if (p->state != RUNNABLE || p->queue!=1)
         continue;
-      if(p->pid==c->_last_pid_queue[1])
-        return p-ptable.proc;
       if(min_val<p->burst_time){
         new_min=(new_min<p->burst_time) ? new_min : p->burst_time;
         flag=0;
@@ -428,36 +409,26 @@ int _SJF_scheduler(){
     int rand=((unsigned int)(seed / 65536) % 32768)%100;
     seed= (seed+ticks) * 1103515243 + 12345;
     if(rand<ptable.proc[p_idx[i]].confidence)
-    {
-      ptable.proc[p_idx[i]].consecutive_runs=1;
       return p_idx[i];
-    }
   }
   if(idx)
-  {
-    ptable.proc[p_idx[idx-1]].consecutive_runs=1;
     return p_idx[idx-1];
-  }
   return -1;
 }
 
 int _FCFS_scheduler(){
   int min_val=1e9,min_idx=-1;
-  struct cpu *c = mycpu();
   struct proc *p;
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->state != RUNNABLE || p->queue!=2)
       continue;
-    if(p->pid==c->_last_pid_queue[2])
-      return p-ptable.proc;
     if(min_val>p->arrival)
     {
       min_val = p->arrival;
       min_idx = p-ptable.proc;
     }
   }
-  ptable.proc[min_idx].consecutive_runs=1;
   return min_idx;
 }
 
@@ -471,7 +442,7 @@ int _FCFS_scheduler(){
 //       via swtch back to the scheduler.
 void scheduler(void)
 {
-  int p_index,queue=2;
+  int p_index;
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
@@ -483,9 +454,9 @@ void scheduler(void)
     acquire(&ptable.lock);
     do
     {
-      if(mycpu()->_consecutive_runs_queue==0)
-        queue=(queue+1)%3;
-      switch (queue)
+      if(c->_consecutive_runs_queue==0)
+        c->_current_queue=(c->_current_queue+1)%3;
+      switch (c->_current_queue)
       {
       case 0:
         p_index=_RR_scheduler();
@@ -503,16 +474,13 @@ void scheduler(void)
       }
       if(p_index==-1)
       {
-        c->_last_pid_queue[queue]=-1;
-        mycpu()->_consecutive_runs_queue=0;
-        if(queue==_NQUEUE-1)
+        c->_consecutive_runs_queue=0;
+        if(c->_current_queue==_NQUEUE-1)
           break;
         continue;
       }
-      c->_last_pid_queue[queue]=ptable.proc[p_index].pid;
       p=&ptable.proc[p_index];
       p->wait_time=0;
-      p->consecutive_runs=1;
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -522,7 +490,7 @@ void scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
-    }while (c->_consecutive_runs_queue || queue!=_NQUEUE-1);
+    }while (c->_consecutive_runs_queue || c->_current_queue!=_NQUEUE-1);
     release(&ptable.lock);
   }
 }
@@ -554,7 +522,7 @@ void sched(void)
 int _should_yield(){
   struct proc *p = myproc();
   int queue_time_slice=time_slice*queue_weights[p->queue];
-  if(++mycpu()->_consecutive_runs_queue==queue_time_slice)
+  if(++mycpu()->_consecutive_runs_queue>=queue_time_slice)
   {
     mycpu()->_consecutive_runs_queue=0;
     return 1;
@@ -562,7 +530,7 @@ int _should_yield(){
   switch (p->queue)
   {
   case 0:
-    return (p->consecutive_runs==5);
+    return (p->consecutive_runs>=5);
   case 1:
   case 2:
     return 0;
@@ -576,12 +544,13 @@ int _should_yield(){
 void yield(void)
 {
   acquire(&ptable.lock); // DOC: yieldlock
+  // cprintf("Pid: %d Consecutive runs: %d CPU: %d\n",myproc()->pid,myproc()->consecutive_runs,cpuid());
+  myproc()->consecutive_runs++;
   if(_should_yield()){
+    myproc()->consecutive_runs = 0;
     myproc()->state = RUNNABLE;
     sched();
   }
-  else
-    myproc()->consecutive_runs++;
   release(&ptable.lock);
 }
 
@@ -631,7 +600,8 @@ void sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
-  sched();
+  
+    sched();
 
   // Tidy up.
   p->chan = 0;
@@ -820,11 +790,16 @@ int list_all_processes(void)
   cprintf("No processes to show\n");
   return -1;
 }
-// Babak
+
 int set_sjf_info(int pid,int burst,int confidence)
 {
   struct proc *p;
   acquire(&ptable.lock);
+  if(pid<=0 || pid>=NPROC)
+  {
+    cprintf("Invalid pid\n");
+    return -1;
+  }
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->pid == pid)
@@ -838,15 +813,15 @@ int set_sjf_info(int pid,int burst,int confidence)
   release(&ptable.lock);
   return -1;
 }
-// Babak
+
 int set_queue(int pid,int queue)
 {
-  if(pid<=0)
+  if(pid<=0 || pid>=NPROC)
   {
     cprintf("Invalid pid\n");
     return -1;
   }
-  if(queue>3 || queue < 0)
+  if(queue > 3 || queue < 0)
   {
     cprintf("Invalid queue\n");
     return -1;
@@ -870,7 +845,7 @@ int set_queue(int pid,int queue)
   release(&ptable.lock);
   return -1;
 }
-// Babak
+
 int report_all_processes(void)
 {
   struct proc *p;

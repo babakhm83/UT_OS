@@ -63,7 +63,6 @@ void ca2_test(int argc, char *argv[]){
 }
 void heavy_calculation(){
   for (int i = 0; i < 1e8; i++);
-  printf(2,"\nDone\n");
 }
 void ca3_test(int argc, char *argv[]){
   if (argc<2)
@@ -74,14 +73,15 @@ void ca3_test(int argc, char *argv[]){
   if (!strcmp(argv[1],"0"))
     report_all_processes();
   else if (!strcmp(argv[1],"rr")){
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 5; i++)
       fork();
+    // report_all_processes();
     heavy_calculation();
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 5; i++)
       wait();
   }
   else if (!strcmp(argv[1],"sjf")){
-    int pids[4],bursts[4]={6,3,4,7},confidences[4]={100,100,100,100};
+    int pids[4],bursts[4]={6,3,4,7},confidences[4]={50,50,50,50};
     if((fork())==0){
       heavy_calculation();
       exit();
@@ -90,15 +90,19 @@ void ca3_test(int argc, char *argv[]){
     {
       if((pids[i]=fork())==0)
       {
-        printf(2,"sp%d\n",i);
         for (int i = 0; i < 1e4; i++);
-        printf(2,"ep%d\n",i);
         exit();
       }
       else
         set_sjf_info(pids[i],bursts[i],confidences[i]);
     }
   }
+  else if (!strcmp(argv[1],"set_sjf_info"))
+    set_sjf_info(atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
+  else if (!strcmp(argv[1],"set_queue"))
+    set_queue(atoi(argv[2]),atoi(argv[3]));
+  else if (!strcmp(argv[1],"report_all"))
+    report_all_processes();
   exit();
 }
 int

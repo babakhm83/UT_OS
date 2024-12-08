@@ -18,7 +18,8 @@ exec(char *path, char **argv)
   struct proghdr ph;
   pde_t *pgdir, *oldpgdir;
   struct proc *curproc = myproc();
-
+  if(curproc->parent->pid==2)
+    curproc->queue=2;
   begin_op();
 
   if((ip = namei(path)) == 0){

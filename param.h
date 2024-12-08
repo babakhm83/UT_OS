@@ -12,4 +12,4 @@
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
 #define FSSIZE       1000  // size of file system in blocks
 #define _NQUEUE       3  // Number of queues in MLFQ scheduling algorithm
-
+#define MAX_WAIT_TIME 800

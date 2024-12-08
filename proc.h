@@ -9,14 +9,14 @@ struct cpu {
   int intena;                  // Were interrupts enabled before pushcli?
   struct proc *proc;           // The process running on this cpu or null
   int _consecutive_runs_queue; // The number of times a process from the last queue has been running.
-  int _last_pid_queue[_NQUEUE];// The pid of the last process that was chosen from a queue.
+  int _current_queue;          // The current queue the cpu is choosing processes from.
 };
 
 extern struct cpu cpus[NCPU];
 extern int ncpu;
 
 static const int time_slice=10;
-static const int queue_weights[_NQUEUE]={3,0,1};
+static const int queue_weights[_NQUEUE]={3,2,1};
 
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.
@@ -60,12 +60,12 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int sc[sizeof(syscall_names)/sizeof(char*)]; //Babak          // Array storing the number of times each system call is invoked by this process
-  int queue; //Babak           // The scheduling queue
-  int wait_time; //Babak       // Total wait time
-  int confidence; //Babak      // Confidence in burst time
-  int burst_time; //Babak      // Burst time
-  int consecutive_runs; //Babak // Last number of consecutive runs
-  int arrival; //Babak         // Time of arrival
+  int queue;             // The scheduling queue
+  int wait_time;         // Total wait time
+  int confidence;        // Confidence in burst time
+  int burst_time;        // Burst time
+  int consecutive_runs;  // Last number of consecutive runs
+  int arrival;           // Time of arrival
 };
 
 // Process memory is laid out contiguously, low addresses first:

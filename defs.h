@@ -121,14 +121,14 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-void            _aging(void); // Babak
 void            create_palindrome(int); // Babak
 int             sort_syscalls(int); // Babak
 int             get_most_invoked(int); // Ali
 int             list_all_processes(void); // Aidin
-int             set_sjf_info(int,int,int); // Babak
-int             set_queue(int,int); // Babak
-int             report_all_processes(void); // Babak
+void            _aging(void); 
+int             set_sjf_info(int,int,int); 
+int             set_queue(int,int); 
+int             report_all_processes(void); 
 
 // swtch.S
 void            swtch(struct context**, struct context*);
