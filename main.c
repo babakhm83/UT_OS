@@ -52,6 +52,8 @@ static void
 mpmain(void)
 {
   mycpu()->_consecutive_runs_queue=0;
+  for (int i = 0; i < _NQUEUE; i++)
+    mycpu()->_last_pid_queue[i]=-1;
   cprintf("cpu%d: starting %d\n", cpuid(), cpuid());
   idtinit();       // load idt register
   xchg(&(mycpu()->started), 1); // tell startothers() we're up

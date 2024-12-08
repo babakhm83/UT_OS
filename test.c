@@ -64,24 +64,41 @@ void ca2_test(int argc, char *argv[]){
 void heavy_calculation(){
   for (int i = 0; i < 1e8; i++);
   printf(2,"\nDone\n");
-  wait();
-  wait();
-  wait();
-  exit();
 }
 void ca3_test(int argc, char *argv[]){
   if (argc<2)
   {
-    printf(2, "usage: test system_call...\n");
+    printf(2, "usage: test algorithm...\n");
     exit();
   }
-  if (!strcmp(argv[1],"0")){
-    fork();
-    fork();
-    heavy_calculation();
-  }
-  if (!strcmp(argv[1],"1"))
+  if (!strcmp(argv[1],"0"))
     report_all_processes();
+  else if (!strcmp(argv[1],"rr")){
+    for (int i = 0; i < 3; i++)
+      fork();
+    heavy_calculation();
+    for (int i = 0; i < 3; i++)
+      wait();
+  }
+  else if (!strcmp(argv[1],"sjf")){
+    int pids[4],bursts[4]={6,3,4,7},confidences[4]={100,100,100,100};
+    if((fork())==0){
+      heavy_calculation();
+      exit();
+    }
+    for (int i = 0; i < 4; i++)
+    {
+      if((pids[i]=fork())==0)
+      {
+        printf(2,"sp%d\n",i);
+        for (int i = 0; i < 1e4; i++);
+        printf(2,"ep%d\n",i);
+        exit();
+      }
+      else
+        set_sjf_info(pids[i],bursts[i],confidences[i]);
+    }
+  }
   exit();
 }
 int
@@ -91,6 +108,6 @@ main(int argc, char *argv[]) {
   else if(!strcmp(argv[argc-1],"3"))
     ca3_test(argc-1,argv);
   else
-    printf(2, "usage: test ca ...\n");
+    printf(2, "usage: test ... ca\n");
   exit();
 }

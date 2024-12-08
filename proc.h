@@ -9,13 +9,14 @@ struct cpu {
   int intena;                  // Were interrupts enabled before pushcli?
   struct proc *proc;           // The process running on this cpu or null
   int _consecutive_runs_queue; // The number of times a process from the last queue has been running.
+  int _last_pid_queue[_NQUEUE];// The pid of the last process that was chosen from a queue.
 };
 
 extern struct cpu cpus[NCPU];
 extern int ncpu;
 
 static const int time_slice=10;
-static const int queue_weights[3]={1,2,3};
+static const int queue_weights[_NQUEUE]={3,0,1};
 
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.

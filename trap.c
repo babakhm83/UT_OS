@@ -119,7 +119,10 @@ trap(struct trapframe *tf)
   // If interrupts were on while locks held, would need to check nlock.
   if(myproc() && myproc()->state == RUNNING &&
      tf->trapno == T_IRQ0+IRQ_TIMER)
-      yield();
+  {
+    cprintf("Pid: %d Consecutive runs: %d CPU: %d\n",myproc()->pid,myproc()->consecutive_runs,cpuid());
+    yield();
+  }
 
   // Check if the process has been killed since we yielded
   if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)

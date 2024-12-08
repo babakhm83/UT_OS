@@ -7,6 +7,14 @@
 #include "proc.h"
 #include "spinlock.h"
 
+char *states_names[] = {
+    [UNUSED] "unused",
+    [EMBRYO] "embryo",
+    [SLEEPING] "sleep ",
+    [RUNNABLE] "runble",
+    [RUNNING] "run   ",
+    [ZOMBIE] "zombie"};
+
 struct
 {
   struct spinlock lock;
@@ -224,7 +232,6 @@ int fork(void)
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
   pid = np->pid;
-
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
@@ -315,7 +322,7 @@ int wait(void)
         p->name[0] = 0;
         for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
           p->sc[i] = 0;
-        p->queue=0;
+        p->queue=2;
         p->wait_time=0;
         p->confidence=50;
         p->burst_time=2;
@@ -358,51 +365,56 @@ void _aging()
 }
 
 int _RR_scheduler(){
+  struct cpu *c = mycpu();
   static int index=0;
+  struct proc *p;
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if(p->pid==c->_last_pid_queue[0])
+    {
+      if (p->state != RUNNABLE || 
+      p->queue!=0 || p->consecutive_runs==5)
+      {
+        if(p->consecutive_runs==5)
+          p->consecutive_runs=0;
+        continue;
+      }
+      return p-ptable.proc;
+    }
+  }
   for (int i=0; i<NPROC; i++)
   {
     index=(index+1)%NPROC;
     if (ptable.proc[index].state != RUNNABLE || ptable.proc[index].queue!=0)
       continue;
+    p->consecutive_runs=1;
     return index;
   }
   return -1;
 }
 
-int _FCFS_scheduler(){
-  int min_val=1e9,min_idx=-1;
-  for (int i = 0; i < NPROC; i++)
-  {
-    if (ptable.proc[i].state != RUNNABLE || ptable.proc[i].queue!=2)
-      continue;
-    if(min_val>ptable.proc[i].arrival)
-    {
-      min_val = ptable.proc[i].arrival;
-      min_idx = i;
-    }
-  }
-  return min_idx;
-}
-
 int _SJF_scheduler(){
-  int p[NPROC];
-
+  int p_idx[NPROC];
+  struct cpu *c = mycpu();
   int min_val=0,new_min=1e9;
   int idx = 0;
   while(idx<NPROC)
   {
     new_min=1e9;
     int flag=1;
-    for (int j=0; j<NPROC; j++)
+    struct proc *p;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
-      if (ptable.proc[j].state != RUNNABLE || ptable.proc[j].queue!=1)
+      if (p->state != RUNNABLE || p->queue!=1)
         continue;
-      if(min_val<ptable.proc[j].burst_time){
-        new_min=(new_min<ptable.proc[j].burst_time) ? new_min : ptable.proc[j].burst_time;
+      if(p->pid==c->_last_pid_queue[1])
+        return p-ptable.proc;
+      if(min_val<p->burst_time){
+        new_min=(new_min<p->burst_time) ? new_min : p->burst_time;
         flag=0;
       }
-      else if(min_val==ptable.proc[j].burst_time){
-        p[idx++]=j;
+      else if(min_val==p->burst_time){
+        p_idx[idx++]=p-ptable.proc;
         flag=0;
       }
     }
@@ -414,15 +426,39 @@ int _SJF_scheduler(){
   for (int i = 0; i < idx; i++)
   {
     int rand=((unsigned int)(seed / 65536) % 32768)%100;
-    seed= seed * 1103515243 + 12345;
-    if(rand<ptable.proc[p[i]].confidence)
+    seed= (seed+ticks) * 1103515243 + 12345;
+    if(rand<ptable.proc[p_idx[i]].confidence)
     {
-      return p[i];
+      ptable.proc[p_idx[i]].consecutive_runs=1;
+      return p_idx[i];
     }
   }
   if(idx)
-    return p[idx-1];
+  {
+    ptable.proc[p_idx[idx-1]].consecutive_runs=1;
+    return p_idx[idx-1];
+  }
   return -1;
+}
+
+int _FCFS_scheduler(){
+  int min_val=1e9,min_idx=-1;
+  struct cpu *c = mycpu();
+  struct proc *p;
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state != RUNNABLE || p->queue!=2)
+      continue;
+    if(p->pid==c->_last_pid_queue[2])
+      return p-ptable.proc;
+    if(min_val>p->arrival)
+    {
+      min_val = p->arrival;
+      min_idx = p-ptable.proc;
+    }
+  }
+  ptable.proc[min_idx].consecutive_runs=1;
+  return min_idx;
 }
 
 // PAGEBREAK: 42
@@ -435,7 +471,7 @@ int _SJF_scheduler(){
 //       via swtch back to the scheduler.
 void scheduler(void)
 {
-  int p_index,queue=3;
+  int p_index,queue=2;
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
@@ -467,13 +503,16 @@ void scheduler(void)
       }
       if(p_index==-1)
       {
+        c->_last_pid_queue[queue]=-1;
         mycpu()->_consecutive_runs_queue=0;
-        if(!(queue==sizeof(queue_weights)/sizeof(queue_weights[0]) && mycpu()->_consecutive_runs_queue==0))
+        if(queue==_NQUEUE-1)
           break;
         continue;
       }
+      c->_last_pid_queue[queue]=ptable.proc[p_index].pid;
       p=&ptable.proc[p_index];
       p->wait_time=0;
+      p->consecutive_runs=1;
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -483,8 +522,7 @@ void scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
-      p->consecutive_runs=1;
-    }while (!(queue==sizeof(queue_weights)/sizeof(queue_weights[0]) && mycpu()->_consecutive_runs_queue==0));
+    }while (c->_consecutive_runs_queue || queue!=_NQUEUE-1);
     release(&ptable.lock);
   }
 }
@@ -516,13 +554,11 @@ void sched(void)
 int _should_yield(){
   struct proc *p = myproc();
   int queue_time_slice=time_slice*queue_weights[p->queue];
-  if(mycpu()->_consecutive_runs_queue==queue_time_slice)
+  if(++mycpu()->_consecutive_runs_queue==queue_time_slice)
   {
     mycpu()->_consecutive_runs_queue=0;
     return 1;
   }
-  else
-    mycpu()->_consecutive_runs_queue++;
   switch (p->queue)
   {
   case 0:
@@ -539,15 +575,13 @@ int _should_yield(){
 // Give up the CPU for one scheduling round.
 void yield(void)
 {
-  // cprintf("%d %d ",mycpu()->_consecutive_runs_queue, queue_time_slice);
   acquire(&ptable.lock); // DOC: yieldlock
   if(_should_yield()){
     myproc()->state = RUNNABLE;
     sched();
   }
-  else{
+  else
     myproc()->consecutive_runs++;
-  }
   release(&ptable.lock);
 }
 
@@ -577,7 +611,6 @@ void forkret(void)
 void sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-
   if (p == 0)
     panic("sleep");
 
@@ -598,7 +631,6 @@ void sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
-
   sched();
 
   // Tidy up.
@@ -663,13 +695,6 @@ int kill(int pid)
 //  No lock to avoid wedging a stuck machine further.
 void procdump(void)
 {
-  static char *states[] = {
-      [UNUSED] "unused",
-      [EMBRYO] "embryo",
-      [SLEEPING] "sleep ",
-      [RUNNABLE] "runble",
-      [RUNNING] "run   ",
-      [ZOMBIE] "zombie"};
   int i;
   struct proc *p;
   char *state;
@@ -679,8 +704,8 @@ void procdump(void)
   {
     if (p->state == UNUSED)
       continue;
-    if (p->state >= 0 && p->state < NELEM(states) && states[p->state])
-      state = states[p->state];
+    if (p->state >= 0 && p->state < NELEM(states_names) && states_names[p->state])
+      state = states_names[p->state];
     else
       state = "???";
     cprintf("%d %s %s", p->pid, state, p->name);
@@ -848,13 +873,6 @@ int set_queue(int pid,int queue)
 // Babak
 int report_all_processes(void)
 {
-  char *states[] = {
-      [UNUSED] "unused",
-      [EMBRYO] "embryo",
-      [SLEEPING] "sleep ",
-      [RUNNABLE] "runble",
-      [RUNNING] "run   ",
-      [ZOMBIE] "zombie"};
   struct proc *p;
   acquire(&ptable.lock);
   cprintf("Name\tPid\tState\tQueue\tWait time\tConfidence\tBurst time\tConsecutive runs\tArrival\n");
@@ -863,7 +881,7 @@ int report_all_processes(void)
     if(p->pid==UNUSED)
       continue;
     cprintf("%s\t%d\t%s\t%d\t%d\t\t%d\t\t%d\t\t%d\t\t\t%d\n", 
-    p->name,p->pid,states[p->state],p->queue,p->wait_time,p->confidence,p->burst_time,p->consecutive_runs,p->arrival);
+    p->name,p->pid,states_names[p->state],p->queue,p->wait_time,p->confidence,p->burst_time,p->consecutive_runs,p->arrival);
   }
   release(&ptable.lock);
   return 0;
