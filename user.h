@@ -33,6 +33,7 @@ int list_all_processes(void);
 int set_sjf_info(int,int,int);
 int set_queue(int,int);
 int report_all_processes(void);
+int report_syscalls_count(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

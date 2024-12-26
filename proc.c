@@ -320,7 +320,7 @@ int wait(void)
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
-        for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
+        for (int i = 0; i < NELEM(p->sc); i++)
           p->sc[i] = 0;
         p->queue=2;
         p->wait_time=0;
@@ -700,11 +700,44 @@ void create_palindrome(int num) // Babak
   cprintf("Palindrome of %d is: %d\n", num, palnum);
   return;
 }
+struct _syscall_counter {
+  struct spinlock lock;
+  int count;
+};
+struct _syscall_counter _total_syscalls;
 void _log_syscall(int num) //Ali
 {
+  int syscall_weight;
+  switch (num)
+  {
+  case 15:
+    syscall_weight = 3;
+    break;
+  case 16:
+    syscall_weight = 2;
+    break;
+  default:
+    syscall_weight = 1;
+    break;
+  }
+
+  acquire(&_total_syscalls.lock);
+    _total_syscalls.count += syscall_weight;
+  struct cpu *curcpu = mycpu();
+  release(&_total_syscalls.lock);
+  curcpu->_syscall_counter += syscall_weight;
+
   struct proc *curproc = myproc();
   curproc->sc[num - 1]++;
   return;
+}
+int report_syscalls_count(){
+  cprintf("Number of system calls for each cpu\n");
+  cprintf("-----------------------------------\n");
+  for (int i = 0; i < ncpu; i++)
+    cprintf("CPU %d: %d\n",i,cpus[i]._syscall_counter);
+  cprintf("Total: %d\n",_total_syscalls.count);
+  return _total_syscalls.count;
 }
 int sort_syscalls(int pid) // Ali
 {
@@ -714,7 +747,7 @@ int sort_syscalls(int pid) // Ali
   {
     if (p->pid == pid)
     {
-      for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
+      for (int i = 0; i < NELEM(p->sc); i++)
       {
         if (p->sc[i])
           cprintf("%d %s: %d times\n", i + 1, syscall_names[i], p->sc[i]);
@@ -740,7 +773,7 @@ int get_most_invoked(int pid)
   {
     if (p->pid == pid)
     {
-      for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
+      for (int i = 0; i < NELEM(p->sc); i++)
       {
         if (p->sc[i] > max)
         {
@@ -776,7 +809,7 @@ int list_all_processes(void)
     {
       proc_flag = 1;
       sum = 0;
-      for (int i = 0; i < sizeof(p->sc) / sizeof(p->sc[0]); i++)
+      for (int i = 0; i < NELEM(p->sc); i++)
       {
         sum += p->sc[i];
       }

@@ -28,3 +28,4 @@
 #define SYS_set_sjf_info 27
 #define SYS_set_queue 28
 #define SYS_report_all_processes 29
+#define SYS_report_syscalls_count 30

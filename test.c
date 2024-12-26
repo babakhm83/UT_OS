@@ -1,5 +1,7 @@
 #include "types.h"
+#include "stat.h"
 #include "user.h"
+#include "fcntl.h"
 // Written by Babak
 
 void ca2_test(int argc, char *argv[]){
@@ -105,12 +107,48 @@ void ca3_test(int argc, char *argv[]){
     report_all_processes();
   exit();
 }
+void write_alot(int id){
+    int fd;
+    char file_name[32]="i_test_ca4.txt";
+    file_name[0]='1'+id;
+    if((fd = open(file_name, O_CREATE)) < 0){
+      printf(2, "Opening file failed\n");
+      exit();
+    }
+    for (int i = 0; i < 10; i++)
+      write(fd,"1",1);
+    close(fd);
+    exit();
+}
+void ca4_test(int argc, char *argv[]){
+  if (argc<2)
+  {
+    printf(2, "usage: test part...\n");
+    exit();
+  }
+  if (!strcmp(argv[1],"0"))
+  {
+    int pid,n_process=4;
+    for (int i = 0; i < n_process; i++)
+    {
+      pid=fork();
+      if(!pid)
+        write_alot(i);
+    }
+    for (int i = 0; i < n_process; i++)
+      wait();
+    report_syscalls_count();
+  }
+  exit();
+}
 int
 main(int argc, char *argv[]) {
   if(!strcmp(argv[argc-1],"2"))
     ca2_test(argc-1,argv);
   else if(!strcmp(argv[argc-1],"3"))
     ca3_test(argc-1,argv);
+  else if(!strcmp(argv[argc-1],"4"))
+    ca4_test(argc-1,argv);
   else
     printf(2, "usage: test ... ca\n");
   exit();

@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "x86.h"
 #include "syscall.h"
+#include "spinlock.h"
 
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
@@ -111,6 +112,7 @@ extern int sys_list_all_processes(void); // Aidin
 extern int sys_set_sjf_info(void); 
 extern int sys_set_queue(void); 
 extern int sys_report_all_processes(void); 
+extern int sys_report_syscalls_count(void);
 
 static int (*syscalls[])(void) = {
     [SYS_fork] sys_fork,
@@ -142,6 +144,7 @@ static int (*syscalls[])(void) = {
     [SYS_set_sjf_info] sys_set_sjf_info, 
     [SYS_set_queue] sys_set_queue, 
     [SYS_report_all_processes] sys_report_all_processes, 
+    [SYS_report_syscalls_count] sys_report_syscalls_count, 
 };
 
 void
@@ -149,7 +152,6 @@ syscall(void)
 {
   int num;
   struct proc *curproc = myproc();
-
   num = curproc->tf->eax;
   _log_syscall(num);
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {

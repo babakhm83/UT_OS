@@ -159,3 +159,10 @@ sys_report_all_processes(void)
 {
   return report_all_processes();
 }
+
+// Return total number of system calls, called by all cpus
+int  
+sys_report_syscalls_count(void)
+{
+  return report_syscalls_count();
+}

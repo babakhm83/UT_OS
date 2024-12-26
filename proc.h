@@ -10,6 +10,7 @@ struct cpu {
   struct proc *proc;           // The process running on this cpu or null
   int _consecutive_runs_queue; // The number of times a process from the last queue has been running.
   int _current_queue;          // The current queue the cpu is choosing processes from.
+  int _syscall_counter;        // Number of system calls, called by a process being run on this CPU
 };
 
 extern struct cpu cpus[NCPU];
@@ -42,7 +43,7 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 static const char *syscall_names[] = {"fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup",
                           "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close",
                           "create_palindrome", "move_file", "sort_syscalls", "get_most_invoked_syscall", " list_all_processes",
-                          "set_sjf_info","set_queue","report_all_processes"};
+                          "set_sjf_info","set_queue","report_all_processes","total_syscalls_count"};
 
 // Per-process state
 struct proc {
