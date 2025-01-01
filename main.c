@@ -28,6 +28,7 @@ main(void)
   uartinit();      // serial port
   pinit();         // process table
   _syscntinit();   // system call counter
+  _fib_init();     // fibonacci numbers list
   tvinit();        // trap vectors
   binit();         // buffer cache
   fileinit();      // file table

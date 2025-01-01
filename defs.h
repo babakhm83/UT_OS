@@ -4,6 +4,7 @@ struct file;
 struct inode;
 struct pipe;
 struct proc;
+struct reentrantlock;
 struct rtcdate;
 struct spinlock;
 struct sleeplock;
@@ -113,6 +114,7 @@ struct proc*    myproc();
 void            _log_syscall();
 void            pinit(void);
 void            _syscntinit(void);
+void            _fib_init(void);
 void            procdump(void);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
@@ -131,6 +133,13 @@ int             set_sjf_info(int,int,int);
 int             set_queue(int,int); 
 int             report_all_processes(void); 
 int             report_syscalls_count(void); 
+int             fibonacci_number(int); 
+
+// reentrantlock.c
+void            acquirereentrant(struct reentrantlock*);
+void            releasereentrant(struct reentrantlock*);
+int             holdingreentrant(struct reentrantlock*);
+void            initreentrantlock(struct reentrantlock*, char*);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

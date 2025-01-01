@@ -16,7 +16,8 @@ struct cpu {
 extern struct cpu cpus[NCPU];
 extern int ncpu;
 
-static const int time_slice=10;
+static const int time_slice = 10;
+static const int rr_timeq = 5;
 static const int queue_weights[_NQUEUE]={3,2,1};
 
 //PAGEBREAK: 17
@@ -41,9 +42,9 @@ struct context {
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 static const char *syscall_names[] = {"fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup",
-                          "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close",
-                          "create_palindrome", "move_file", "sort_syscalls", "get_most_invoked_syscall", " list_all_processes",
-                          "set_sjf_info","set_queue","report_all_processes","total_syscalls_count"};
+                                      "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close",
+                                      "create_palindrome", "move_file", "sort_syscalls", "get_most_invoked_syscall", " list_all_processes",
+                                      "set_sjf_info", "set_queue", "report_all_processes", "total_syscalls_count", "fibonacci_number"};
 
 // Per-process state
 struct proc {

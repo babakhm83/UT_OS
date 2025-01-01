@@ -2,6 +2,9 @@
 #include "stat.h"
 #include "user.h"
 #include "fcntl.h"
+#include "spinlock.h"
+#include "sleeplock.h"
+#include "reentrantlock.h"
 // Written by Babak
 
 void ca2_test(int argc, char *argv[]){
@@ -111,7 +114,7 @@ void write_alot(int id){
     int fd;
     char file_name[32]="i_test_ca4.txt";
     file_name[0]='1'+id;
-    if((fd = open(file_name, O_CREATE)) < 0){
+    if((fd = open(file_name, O_CREATE | O_WRONLY)) < 0){
       printf(2, "Opening file failed\n");
       exit();
     }
@@ -119,6 +122,28 @@ void write_alot(int id){
       write(fd,"1",1);
     close(fd);
     exit();
+}
+void test_fib(int argc, char *argv[]){
+  if (argc < 4)
+  {
+    printf(2, "usage: test 1 fib1 fib2...\n");
+    exit();
+  }
+  int num1 = atoi(argv[2]), num2 = atoi(argv[3]), fib1 = 0, fib2 = 0;
+  int pid = fork();
+  if (!pid)
+  {
+    fib1 = fibonacci_number(num1);
+    if (fib1 != -1)
+      printf(1, "fib %d is %d\n", num1, fib1);
+    exit();
+  }
+  else
+    fib2 = fibonacci_number(num2);
+  wait();
+  if (fib1 != -1)
+    printf(1, "fib %d is %d\n", num2, fib2);
+  exit();
 }
 void ca4_test(int argc, char *argv[]){
   if (argc<2)
@@ -138,6 +163,10 @@ void ca4_test(int argc, char *argv[]){
     for (int i = 0; i < n_process; i++)
       wait();
     report_syscalls_count();
+  }
+  if (!strcmp(argv[1],"1"))
+  {
+    test_fib(argc,argv);
   }
   exit();
 }

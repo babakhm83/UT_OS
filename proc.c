@@ -6,6 +6,8 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "sleeplock.h"
+#include "reentrantlock.h"
 
 char *states_names[] = {
     [UNUSED] "unused",
@@ -540,7 +542,7 @@ int _should_yield(){
   switch (p->queue)
   {
   case 0:
-    return (p->consecutive_runs>=5);
+    return (p->consecutive_runs>=rr_timeq);
   case 1:
   case 2:
     return 0;
@@ -872,11 +874,13 @@ int set_queue(int pid,int queue)
     {
       if(p->queue==queue)
       {
-        cprintf("The process with pid %d is already in queue %d\n",pid,queue);
+        cprintf("The process with pid %d is already in queue %d\n", pid, queue);
+        release(&ptable.lock);
         return -1;
       }
       p->queue=queue;
       p->arrival=ticks;
+      release(&ptable.lock);
       return 0;
     }
   }
@@ -898,4 +902,41 @@ int report_all_processes(void)
   }
   release(&ptable.lock);
   return 0;
+}
+struct fib_numbers
+{
+  struct reentrantlock lock;
+  int fibs[41];
+  uint valid[41];
+} fib_nums;
+void _fib_init()
+{
+  initreentrantlock(&fib_nums.lock, "fibonacchi numbers");
+  for (int i = 2; i < NELEM(fib_nums.fibs); i++)
+  {
+    fib_nums.fibs[i] = 0;
+    fib_nums.valid[i] = 0;
+  }
+  fib_nums.fibs[0] = 1;
+  fib_nums.valid[0] = 1;
+  fib_nums.fibs[1] = 1;
+  fib_nums.valid[1] = 1;
+}
+int fibonacci_number(int n){
+  if (n < 0 || n >= NELEM(fib_nums.fibs))
+  {
+    cprintf("Invalid Fibonacci index: %d\n", n);
+    return -1;
+  }
+  acquirereentrant(&fib_nums.lock);
+  if (fib_nums.valid[n])
+  {
+    releasereentrant(&fib_nums.lock);
+    return fib_nums.fibs[n];
+  }
+  fib_nums.fibs[n] += fibonacci_number(n - 1);
+  fib_nums.fibs[n] += fibonacci_number(n - 2);
+  fib_nums.valid[n] = 1;
+  releasereentrant(&fib_nums.lock);
+  return fib_nums.fibs[n];
 }

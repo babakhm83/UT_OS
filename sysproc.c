@@ -166,3 +166,13 @@ sys_report_syscalls_count(void)
 {
   return report_syscalls_count();
 }
+
+// Returns the nth fibonacci number. This system call is written to test the reentrant lock.
+int
+sys_fibonacci_number(void)
+{
+  int num;
+  if (argint(0, &num) < 0)
+    return -1;
+  return fibonacci_number(num);
+}
