@@ -23,6 +23,11 @@ struct
 
 static struct proc *initproc;
 
+struct _syscall_counter {
+  struct spinlock lock;
+  int count;
+}_total_syscalls;
+
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -32,6 +37,11 @@ static void wakeup1(void *chan);
 void pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+}
+
+void _syscntinit(void){
+  initlock(&_total_syscalls.lock, "system call counter");
+  _total_syscalls.count = 0;
 }
 
 // Must be called with interrupts disabled
@@ -700,11 +710,6 @@ void create_palindrome(int num) // Babak
   cprintf("Palindrome of %d is: %d\n", num, palnum);
   return;
 }
-struct _syscall_counter {
-  struct spinlock lock;
-  int count;
-};
-struct _syscall_counter _total_syscalls;
 void _log_syscall(int num) //Ali
 {
   int syscall_weight;
@@ -722,10 +727,10 @@ void _log_syscall(int num) //Ali
   }
 
   acquire(&_total_syscalls.lock);
-    _total_syscalls.count += syscall_weight;
+  _total_syscalls.count += syscall_weight;
   struct cpu *curcpu = mycpu();
-  release(&_total_syscalls.lock);
   curcpu->_syscall_counter += syscall_weight;
+  release(&_total_syscalls.lock);
 
   struct proc *curproc = myproc();
   curproc->sc[num - 1]++;

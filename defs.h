@@ -112,6 +112,7 @@ struct cpu*     mycpu(void);
 struct proc*    myproc();
 void            _log_syscall();
 void            pinit(void);
+void            _syscntinit(void);
 void            procdump(void);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
