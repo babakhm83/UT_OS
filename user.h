@@ -35,6 +35,7 @@ int set_queue(int,int);
 int report_all_processes(void);
 int report_syscalls_count(void);
 int fibonacci_number(int);
+int open_sharedmem(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

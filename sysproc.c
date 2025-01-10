@@ -176,3 +176,12 @@ sys_fibonacci_number(void)
     return -1;
   return fibonacci_number(num);
 }
+
+int
+sys_open_sharedmem(void)
+{
+  char id[64];
+  if (argint(0, &id) < 0)
+    return -1;
+  return open_sharedmem(id);
+}

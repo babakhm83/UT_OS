@@ -6,6 +6,7 @@
 #include "mmu.h"
 #include "proc.h"
 #include "elf.h"
+#include "spinlock.h"
 
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
@@ -392,3 +393,49 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 //PAGEBREAK!
 // Blank page.
 
+struct
+{
+  struct spinlock lock;
+  int id[_NSHAREDPAGES];
+  char* physical_addr[_NSHAREDPAGES];
+  int n_reference[_NSHAREDPAGES];
+} shared_memory_table;
+
+void _shared_mem_init(void)
+{
+  initlock(&shared_memory_table.lock, "shared memory table");
+  for (int i = 0; i < _NSHAREDPAGES; i++)
+  {
+    shared_memory_table.physical_addr[i] = kalloc();
+    shared_memory_table.n_reference[i]=0;
+  }
+}
+
+int open_sharedmem(int id)
+{
+  int mem_idx = -1;
+  struct proc *curproc = myproc();
+  uint sz = curproc->sz;
+  pde_t *pgdir=curproc->pgdir;
+  acquire(&shared_memory_table.lock);
+  for (int i = 0; i < _NSHAREDPAGES; i++)
+  {
+    if(!shared_memory_table.n_reference)
+      mem_idx = i;
+    else if (shared_memory_table.id[i]==id)
+    {
+      mem_idx = i;
+      break;
+    }
+  }
+  if (mem_idx==-1)
+  {
+    release(&shared_memory_table.lock);
+    return -1;
+  }
+  shared_memory_table.id[mem_idx]=id;
+  shared_memory_table.n_reference[mem_idx]++;
+  release(&shared_memory_table.lock);
+  mappages(pgdir, sz, sz + PGSIZE,shared_memory_table.physical_addr[mem_idx], PTE_W | PTE_U);
+  return sz + PGSIZE;
+}
