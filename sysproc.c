@@ -180,8 +180,16 @@ sys_fibonacci_number(void)
 int
 sys_open_sharedmem(void)
 {
-  char id[64];
+  int id;
   if (argint(0, &id) < 0)
     return -1;
   return open_sharedmem(id);
+}
+
+int sys_close_sharedmem(void)
+{
+  int id;
+  if (argint(0, &id) < 0)
+    return -1;
+  return close_sharedmem(id);
 }

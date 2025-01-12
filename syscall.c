@@ -115,6 +115,7 @@ extern int sys_report_all_processes(void);
 extern int sys_report_syscalls_count(void);
 extern int sys_fibonacci_number(void);
 extern int sys_open_sharedmem(void);
+extern int sys_close_sharedmem(void);
 
 static int (*syscalls[])(void) = {
     [SYS_fork] sys_fork,
@@ -149,6 +150,7 @@ static int (*syscalls[])(void) = {
     [SYS_report_syscalls_count] sys_report_syscalls_count,
     [SYS_fibonacci_number] sys_fibonacci_number,
     [SYS_open_sharedmem] sys_open_sharedmem,
+    [SYS_close_sharedmem] sys_close_sharedmem,
 };
 
 void

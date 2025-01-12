@@ -393,7 +393,7 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 //PAGEBREAK!
 // Blank page.
 
-struct
+static struct
 {
   struct spinlock lock;
   int id[_NSHAREDPAGES];
@@ -415,8 +415,8 @@ int open_sharedmem(int id)
 {
   int mem_idx = -1;
   struct proc *curproc = myproc();
-  uint sz = curproc->sz;
-  pde_t *pgdir=curproc->pgdir;
+  uint sz = PGROUNDUP(curproc->sz);
+  pde_t *pgdir = curproc->pgdir;
   acquire(&shared_memory_table.lock);
   for (int i = 0; i < _NSHAREDPAGES; i++)
   {
@@ -436,6 +436,61 @@ int open_sharedmem(int id)
   shared_memory_table.id[mem_idx]=id;
   shared_memory_table.n_reference[mem_idx]++;
   release(&shared_memory_table.lock);
-  mappages(pgdir, sz, sz + PGSIZE,shared_memory_table.physical_addr[mem_idx], PTE_W | PTE_U);
-  return sz + PGSIZE;
+  if(mappages(pgdir, sz, PGSIZE,shared_memory_table.physical_addr[mem_idx], PTE_W | PTE_U)<0)
+    return -1;
+  curproc->sz+=PGSIZE;
+  return sz;
+}
+
+// Remove PTEs for virtual addresses starting at va that refer to
+// physical addresses starting at pa. va and size might not
+// be page-aligned.
+static int
+unmappages(pde_t *pgdir, void *va, uint size)
+{
+  char *a, *last;
+  pte_t *pte;
+
+  a = (char *)PGROUNDDOWN((uint)va);
+  last = (char *)PGROUNDDOWN(((uint)va) + size - 1);
+  for (;;)
+  {
+    if ((pte = walkpgdir(pgdir, a, 1)) == 0)
+      return -1;
+    if (!*pte || !PTE_P)
+      panic("reunmap");
+    *pte = 0;
+    if (a == last)
+      break;
+    a += PGSIZE;
+  }
+  return 0;
+}
+
+int close_sharedmem(int id)
+{
+  int mem_idx = -1;
+  struct proc *curproc = myproc();
+  uint sz = PGROUNDUP(curproc->sz);
+  pde_t *pgdir = curproc->pgdir;
+  acquire(&shared_memory_table.lock);
+  for (int i = 0; i < _NSHAREDPAGES; i++)
+  {
+    if (shared_memory_table.id[i] == id)
+    {
+      mem_idx = i;
+      break;
+    }
+  }
+  if (mem_idx == -1)
+  {
+    release(&shared_memory_table.lock);
+    return -1;
+  }
+  shared_memory_table.n_reference[mem_idx]--;
+  release(&shared_memory_table.lock);
+  if(unmappages(pgdir, sz, PGSIZE)<0)
+    return -1;
+  curproc->sz -= PGSIZE;
+  return 0;
 }

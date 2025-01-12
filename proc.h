@@ -41,10 +41,9 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-static const char *syscall_names[] = {"fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup",
-                                      "getpid", "sbrk", "sleep", "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close",
-                                      "create_palindrome", "move_file", "sort_syscalls", "get_most_invoked_syscall", " list_all_processes",
-                                      "set_sjf_info", "set_queue", "report_all_processes", "total_syscalls_count", "fibonacci_number", "open_sharedmem"};
+static const char *syscall_names[] = {"fork", "exit", "wait", "pipe", "read", "kill", "exec", "fstat", "chdir", "dup", "getpid", "sbrk", "sleep",
+  "uptime", "open", "write", "mknod", "unlink", "link", "mkdir", "close", "create_palindrome", "move_file", "sort_syscalls", "get_most_invoked_syscall",
+  " list_all_processes", "set_sjf_info", "set_queue", "report_all_processes", "total_syscalls_count", "fibonacci_number", "open_sharedmem", "close_sharedmem"};
 
 // Per-process state
 struct proc {
