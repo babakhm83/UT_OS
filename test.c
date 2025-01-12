@@ -170,6 +170,40 @@ void ca4_test(int argc, char *argv[]){
   }
   exit();
 }
+void ca5_test(int argc, char *argv[])
+{
+  if (argc < 3)
+  {
+    printf(2, "usage: test number n_children_processes...\n");
+    exit();
+  }
+  int n=atoi(argv[1]),n_children=atoi(argv[2]),pid,mem_id=0;
+  int *shared_mem=(int*)open_sharedmem(mem_id);
+  if((int)shared_mem==-1)
+  {
+    printf(2, "ERROR: open_sharedmem\n");
+    exit();
+  }
+  *shared_mem = 0;
+  *(shared_mem+1) = 1;
+  for (int i = 0; i < n_children; i++)
+  {
+    pid = fork();
+    if (!pid){
+      calculate_factorial(n, mem_id);
+      exit();
+    }
+  }
+  for (int i = 0; i < n_children; i++)
+    wait();
+  printf(1, "fact(%d)=%d\n", (*shared_mem), (*(shared_mem + 1)));
+  if (close_sharedmem(mem_id) < 0)
+  {
+    printf(2, "ERROR: close_sharedmem\n");
+    exit();
+  }
+  exit();
+}
 int
 main(int argc, char *argv[]) {
   if(!strcmp(argv[argc-1],"2"))
@@ -178,6 +212,8 @@ main(int argc, char *argv[]) {
     ca3_test(argc-1,argv);
   else if(!strcmp(argv[argc-1],"4"))
     ca4_test(argc-1,argv);
+  else if (!strcmp(argv[argc - 1], "5"))
+    ca5_test(argc - 1, argv);
   else
     printf(2, "usage: test ... ca\n");
   exit();

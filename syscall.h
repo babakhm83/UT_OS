@@ -32,3 +32,4 @@
 #define SYS_fibonacci_number 31
 #define SYS_open_sharedmem 32
 #define SYS_close_sharedmem 33
+#define SYS_calculate_factorial 34

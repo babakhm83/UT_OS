@@ -193,3 +193,13 @@ int sys_close_sharedmem(void)
     return -1;
   return close_sharedmem(id);
 }
+
+int sys_calculate_factorial(void)
+{
+  int n;
+  int mem;
+  if (argint(0, &n) < 0 || argint(1, &mem))
+    return -1;
+  calculate_factorial(n, mem);
+  return 0;
+}

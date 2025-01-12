@@ -903,7 +903,7 @@ int report_all_processes(void)
   release(&ptable.lock);
   return 0;
 }
-struct fib_numbers
+static struct fib_numbers
 {
   struct reentrantlock lock;
   int fibs[41];
@@ -939,4 +939,37 @@ int fibonacci_number(int n){
   fib_nums.valid[n] = 1;
   releasereentrant(&fib_nums.lock);
   return fib_nums.fibs[n];
+}
+static struct spinlock factorial_lock;
+void _factorial_init()
+{
+  initlock(&factorial_lock, "factorial");
+}
+void calculate_factorial(int n, int id)
+{
+  int last = 0;
+  int *mem = (int*)open_sharedmem(id);
+  if ((int)mem == -1)
+  {
+    cprintf("ERROR: open_sharedmem failed for process %d\n",myproc()->pid);
+    return;
+  }
+  while (last < n)
+  {
+    acquire(&factorial_lock);
+    last = *mem;
+    // cprintf("Process %d writing to shared memory: number = %d\n", myproc()->pid, last);
+    if(last<n)
+    {
+      *(mem + 1) *= ++last;
+      *mem = last;
+    }
+    release(&factorial_lock);
+  }
+  if (close_sharedmem(id))
+  {
+    cprintf("ERROR: close_sharedmem failed for process %d\n", myproc()->pid);
+    return;
+  }
+  return;
 }

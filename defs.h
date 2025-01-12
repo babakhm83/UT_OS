@@ -115,6 +115,8 @@ void            _log_syscall();
 void            pinit(void);
 void            _syscntinit(void);
 void            _fib_init(void);
+void            _shared_mem_init();
+void            _factorial_init();
 void            procdump(void);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
@@ -133,7 +135,8 @@ int             set_sjf_info(int,int,int);
 int             set_queue(int,int); 
 int             report_all_processes(void); 
 int             report_syscalls_count(void); 
-int             fibonacci_number(int); 
+int             fibonacci_number(int);
+void            calculate_factorial(int, int);
 
 // reentrantlock.c
 void            acquirereentrant(struct reentrantlock*);
@@ -205,6 +208,8 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+int             open_sharedmem(int);
+int             close_sharedmem(int);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

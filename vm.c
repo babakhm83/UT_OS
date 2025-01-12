@@ -397,17 +397,20 @@ static struct
 {
   struct spinlock lock;
   int id[_NSHAREDPAGES];
-  char* physical_addr[_NSHAREDPAGES];
-  int n_reference[_NSHAREDPAGES];
-} shared_memory_table;
+  char* pa[_NSHAREDPAGES];
+  int ref_count[_NSHAREDPAGES];
+  int va[NPROC][_NSHAREDPAGES];
+} shm_table;
 
 void _shared_mem_init(void)
 {
-  initlock(&shared_memory_table.lock, "shared memory table");
+  initlock(&shm_table.lock, "shared memory table");
   for (int i = 0; i < _NSHAREDPAGES; i++)
   {
-    shared_memory_table.physical_addr[i] = kalloc();
-    shared_memory_table.n_reference[i]=0;
+    shm_table.pa[i] = kalloc();
+    if (shm_table.pa[i] == 0)
+      panic("_shared_mem_init: kalloc failed");
+    shm_table.ref_count[i]=0;
   }
 }
 
@@ -415,14 +418,14 @@ int open_sharedmem(int id)
 {
   int mem_idx = -1;
   struct proc *curproc = myproc();
-  uint sz = PGROUNDUP(curproc->sz);
+  uint va = PGROUNDUP(curproc->sz);
   pde_t *pgdir = curproc->pgdir;
-  acquire(&shared_memory_table.lock);
+  acquire(&shm_table.lock);
   for (int i = 0; i < _NSHAREDPAGES; i++)
   {
-    if(!shared_memory_table.n_reference)
+    if(shm_table.ref_count[i]==0)
       mem_idx = i;
-    else if (shared_memory_table.id[i]==id)
+    else if (shm_table.id[i]==id)
     {
       mem_idx = i;
       break;
@@ -430,16 +433,23 @@ int open_sharedmem(int id)
   }
   if (mem_idx==-1)
   {
-    release(&shared_memory_table.lock);
+    release(&shm_table.lock);
     return -1;
   }
-  shared_memory_table.id[mem_idx]=id;
-  shared_memory_table.n_reference[mem_idx]++;
-  release(&shared_memory_table.lock);
-  if(mappages(pgdir, sz, PGSIZE,shared_memory_table.physical_addr[mem_idx], PTE_W | PTE_U)<0)
+  shm_table.id[mem_idx]=id;
+  shm_table.ref_count[mem_idx]++;
+  release(&shm_table.lock);
+  if (mappages(pgdir, (char *)va, PGSIZE, V2P(shm_table.pa[mem_idx]), PTE_W | PTE_U) < 0)
+  {
+    acquire(&shm_table.lock);
+    shm_table.ref_count[mem_idx]--;
+    release(&shm_table.lock);
     return -1;
-  curproc->sz+=PGSIZE;
-  return sz;
+  }
+  switchuvm(curproc);
+  shm_table.va[curproc->pid][mem_idx] = va;
+  curproc->sz += PGSIZE;
+  return (int)va;
 }
 
 // Remove PTEs for virtual addresses starting at va that refer to
@@ -471,12 +481,11 @@ int close_sharedmem(int id)
 {
   int mem_idx = -1;
   struct proc *curproc = myproc();
-  uint sz = PGROUNDUP(curproc->sz);
   pde_t *pgdir = curproc->pgdir;
-  acquire(&shared_memory_table.lock);
+  acquire(&shm_table.lock);
   for (int i = 0; i < _NSHAREDPAGES; i++)
   {
-    if (shared_memory_table.id[i] == id)
+    if (shm_table.id[i] == id && shm_table.ref_count[i])
     {
       mem_idx = i;
       break;
@@ -484,13 +493,20 @@ int close_sharedmem(int id)
   }
   if (mem_idx == -1)
   {
-    release(&shared_memory_table.lock);
+    release(&shm_table.lock);
     return -1;
   }
-  shared_memory_table.n_reference[mem_idx]--;
-  release(&shared_memory_table.lock);
-  if(unmappages(pgdir, sz, PGSIZE)<0)
+  shm_table.ref_count[mem_idx]--;
+  release(&shm_table.lock);
+  uint va = shm_table.va[curproc->pid][mem_idx];
+  if (unmappages(pgdir, (char *)va, PGSIZE) < 0)
+  {
+    acquire(&shm_table.lock);
+    shm_table.ref_count[mem_idx]++;
+    release(&shm_table.lock);
     return -1;
+  }
+  switchuvm(curproc);
   curproc->sz -= PGSIZE;
   return 0;
 }
